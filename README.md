@@ -119,7 +119,7 @@ reinsurance-layer-pricing-engine/
   │  ├── treaties.py           # ExcessOfLoss, StopLoss treaty structures
   │  ├── pricing.py            # TechnicalPricer: premium computation
   │  ├── risk_measures.py      # VaR, TVaR, attachment/exhaustion probabilities
-  │  └──plots.py              # Ceded loss distribution visualisations
+  │  └──plots.py               # Ceded loss distribution visualisations
   ├── notebooks/
   │  ├── 01_xol_pricing.ipynb
   │  ├── 02_stop_loss_pricing.ipynb
