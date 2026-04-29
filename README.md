@@ -111,15 +111,15 @@ reinsurance-layer-pricing-engine/
   ├── README.md
   ├── pyproject.toml
   ├── src/
-  │  ├── reinsure_pricing/
-  │  ├── __init__.py
-  │  ├── frequency.py          # Poisson, Negative Binomial frequency models
-  │  ├── severity.py           # Lognormal, Gamma, Pareto severity models
-  │  ├── simulation.py         # MonteCarloEngine: orchestrates simulation runs
-  │  ├── treaties.py           # ExcessOfLoss, StopLoss treaty structures
-  │  ├── pricing.py            # TechnicalPricer: premium computation
-  │  ├── risk_measures.py      # VaR, TVaR, attachment/exhaustion probabilities
-  │  └──plots.py               # Ceded loss distribution visualisations
+  │  └── reinsure_pricing/
+  │    ├── __init__.py
+  │    ├── frequency.py          # Poisson, Negative Binomial frequency models
+  │    ├── severity.py           # Lognormal, Gamma, Pareto severity models
+  │    ├── simulation.py         # MonteCarloEngine: orchestrates simulation runs
+  │    ├── treaties.py           # ExcessOfLoss, StopLoss treaty structures
+  │    ├── pricing.py            # TechnicalPricer: premium computation
+  │    ├── risk_measures.py      # VaR, TVaR, attachment/exhaustion probabilities
+  │    └── plots.py              # Ceded loss distribution visualisations
   ├── notebooks/
   │  ├── 01_xol_pricing.ipynb
   │  ├── 02_stop_loss_pricing.ipynb
