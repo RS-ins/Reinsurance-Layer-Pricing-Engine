@@ -1,26 +1,25 @@
 from dataclasses import dataclass
-from reinsure_pricing.simulation import SimulationResults
 
 
 @dataclass
 class PricingResult:
     expected_ceded_loss: float
-    risk_margin: float
     expense_loading: float
+    profit_loading: float
+    capital_load: float
     technical_premium: float
-    loss_ratio_at_technical: float
     rate_on_line: float
     treaty_limit: float
 
     def summary(self) -> str:
         lines = [
             f"Expected Ceded Loss  : {self.expected_ceded_loss:>15,.0f}",
-            f"Risk Margin          : {self.risk_margin:>15,.0f}",
             f"Expense Loading      : {self.expense_loading:>15,.0f}",
-            f"─" * 40,
+            f"Profit Loading       : {self.profit_loading:>15,.0f}",
+            f"Capital Load         : {self.capital_load:>15,.0f}",
+            f"{'─' * 40}",
             f"Technical Premium    : {self.technical_premium:>15,.0f}",
             f"Rate on Line         : {self.rate_on_line:>15.2%}",
-            f"Loss Ratio           : {self.loss_ratio_at_technical:>15.2%}",
         ]
         return "\n".join(lines)
 
@@ -29,44 +28,57 @@ class TechnicalPricer:
     """
     Computes technical premium from simulation results.
 
-    technical_premium = ECL + risk_margin + expense_loading
-
-    where:
-        ECL          = expected ceded loss (mean of simulated ceded losses)
-        risk_margin  = tvar_multiplier * (TVaR - ECL)
-        expense_load = expense_ratio * technical_premium  (solved analytically)
+    Technical Premium = ECL
+                      + expense_load * ECL
+                      + profit_load  * ECL
+                      + cost_of_capital * max(TVaR99 - ECL, 0)
     """
 
-    def __init__(self, tvar_multiplier: float = 0.5,
-                 expense_ratio: float = 0.15,
-                 tvar_alpha: float = 0.99):
-        if not 0 <= tvar_multiplier <= 1:
-            raise ValueError("tvar_multiplier must be between 0 and 1")
-        if not 0 <= expense_ratio < 1:
-            raise ValueError("expense_ratio must be between 0 and 1")
-        self.tvar_multiplier = tvar_multiplier
-        self.expense_ratio = expense_ratio
-        self.tvar_alpha = tvar_alpha
+    def __init__(self,
+                 expected_ceded_loss: float,
+                 tvar_99: float,
+                 expense_load: float = 0.05,
+                 profit_load: float = 0.08,
+                 cost_of_capital: float = 0.10):
 
-    def price(self, results: SimulationResults,
-              treaty_limit: float) -> PricingResult:
+        if expected_ceded_loss < 0:
+            raise ValueError("expected_ceded_loss must be non-negative")
+        if not 0 <= expense_load < 1:
+            raise ValueError("expense_load must be between 0 and 1")
+        if not 0 <= profit_load < 1:
+            raise ValueError("profit_load must be between 0 and 1")
+        if not 0 <= cost_of_capital < 1:
+            raise ValueError("cost_of_capital must be between 0 and 1")
 
-        ecl = results.expected_ceded_loss
-        tvar = results.tvar(self.tvar_alpha)
+        self.expected_ceded_loss = expected_ceded_loss
+        self.tvar_99 = tvar_99
+        self.expense_load = expense_load
+        self.profit_load = profit_load
+        self.cost_of_capital = cost_of_capital
 
-        risk_margin = self.tvar_multiplier * (tvar - ecl)
+    def technical_premium(self) -> float:
+        ecl = self.expected_ceded_loss
+        expense  = self.expense_load * ecl
+        profit   = self.profit_load * ecl
+        capital  = self.cost_of_capital * max(self.tvar_99 - ecl, 0)
+        return ecl + expense + profit + capital
 
-        # Solve for premium: P = ECL + risk_margin + expense_ratio * P
-        # P * (1 - expense_ratio) = ECL + risk_margin
-        technical_premium = (ecl + risk_margin) / (1 - self.expense_ratio)
-        expense_loading = technical_premium * self.expense_ratio
+    def rate_on_line(self, treaty_limit: float) -> float:
+        return self.technical_premium() / treaty_limit
+
+    def price(self, treaty_limit: float) -> PricingResult:
+        ecl      = self.expected_ceded_loss
+        expense  = self.expense_load * ecl
+        profit   = self.profit_load * ecl
+        capital  = self.cost_of_capital * max(self.tvar_99 - ecl, 0)
+        premium  = ecl + expense + profit + capital
 
         return PricingResult(
             expected_ceded_loss=ecl,
-            risk_margin=risk_margin,
-            expense_loading=expense_loading,
-            technical_premium=technical_premium,
-            loss_ratio_at_technical=ecl / technical_premium,
-            rate_on_line=technical_premium / treaty_limit,
+            expense_loading=expense,
+            profit_loading=profit,
+            capital_load=capital,
+            technical_premium=premium,
+            rate_on_line=premium / treaty_limit,
             treaty_limit=treaty_limit,
         )
