@@ -129,6 +129,9 @@ reinsurance-layer-pricing-engine/
   ├── tests/
   │  ├── test_treaties.py
   │  ├── test_pricing.py
+  │  ├── test_frequency.py
+  │  ├── test_severity.py
+  │  ├── test_simulation.py
   │  └── test_risk_measures.py
   ├── examples/
   │  ├── xol_pricing_example.py
@@ -221,7 +224,6 @@ The table below shows illustrative output for the quick start example above. All
 | VaR 99% | 4,102,000 |
 | TVaR 99% | 4,687,000 |
 | Probability of Attachment | 34.2% |
-| Probability of Exhaustion | 2.1% |
 | Technical Premium | 1,718,960 |
 | Rate on Line | 34.38% |
 
