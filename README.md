@@ -86,21 +86,24 @@ The following metrics are computed on the simulated ceded loss distribution:
 
 The technical premium is built up from four components:
 
-$$\text{Technical Premium} = \underbrace{\mathbb{E}[C]}_{\text{Pure Premium}} + \underbrace{e \cdot \mathbb{E}[C]}_{\text{Expense Load}} + \underbrace{p \cdot \mathbb{E}[C]}_{\text{Profit Load}} + \underbrace{\text{Capital Load}}_{}$$
+```
+Technical Premium = ECL
+                  + expense_load × ECL
+                  + profit_load  × ECL
+                  + cost_of_capital × max(TVaR99 - ECL, 0)
+```
 
-where the capital load is computed using a cost-of-capital approach:
-
-$$\text{Capital Load} = r_c \cdot \max\!\bigl(\text{TVaR}_{99}(C) - \mathbb{E}[C],\ 0\bigr)$$
-
-| Parameter | Symbol | Description |
+| Parameter | Default | Description |
 |---|---|---|
-| Expected Ceded Loss | $\mathbb{E}[C]$ | Mean simulated ceded loss; the pure premium |
-| Expense load rate | $e$ | Proportional load for acquisition and administrative expenses |
-| Profit load rate | $p$ | Target profit margin expressed as a fraction of pure premium |
-| Cost of capital | $r_c$ | Required return on risk capital (e.g., 10%) |
-| Risk capital proxy | $\text{TVaR}_{99} - \mathbb{E}[C]$ | Unexpected loss requiring capital support |
+| `expected_ceded_loss` | — | Mean simulated ceded loss; the pure premium |
+| `tvar_99` | — | TVaR at 99% confidence from simulation results |
+| `expense_load` | 0.05 | Proportional load for acquisition and admin expenses |
+| `profit_load` | 0.08 | Target profit margin as a fraction of ECL |
+| `cost_of_capital` | 0.10 | Required return on risk capital |
 
-This formulation is consistent with the cost-of-capital principles underlying Solvency II and standard actuarial practice for risk-adjusted pricing.
+The capital load is applied to the unexpected loss `max(TVaR99 - ECL, 0)` —
+the portion of the tail that exceeds the expected loss and requires capital support.
+This is consistent with cost-of-capital principles underlying Solvency II.
 
 ---
 
@@ -110,34 +113,34 @@ This formulation is consistent with the cost-of-capital principles underlying So
 reinsurance-layer-pricing-engine/
   ├── README.md
   ├── pyproject.toml
+  ├── run.py                          # Quick start script
   ├── src/
-  │  └── reinsure_pricing/
-  │    ├── __init__.py
-  │    ├── frequency.py          # Poisson, Negative Binomial frequency models
-  │    ├── severity.py           # Lognormal, Gamma, Pareto severity models
-  │    ├── simulation.py         # MonteCarloEngine: orchestrates simulation runs
-  │    ├── treaties.py           # ExcessOfLoss, StopLoss treaty structures
-  │    ├── pricing.py            # TechnicalPricer: premium computation
-  │    ├── risk_measures.py      # VaR, TVaR, attachment/exhaustion probabilities
-  │    └── plots.py              # Ceded loss distribution visualisations
+  │   └── reinsure_pricing/
+  │       ├── __init__.py
+  │       ├── frequency.py            # ✅ implemented
+  │       ├── severity.py             # ✅ implemented
+  │       ├── treaties.py             # ✅ implemented
+  │       ├── simulation.py           # ✅ implemented
+  │       ├── pricing.py              # ✅ implemented
+  │       ├── risk_measures.py        # ✅ implemented
+  │       └── plots.py                # ✅ implemented
   ├── notebooks/
-  │  ├── 01_xol_pricing.ipynb
-  │  ├── 02_stop_loss_pricing.ipynb
-  │  └── 03_sensitivity_analysis.ipynb
+  │   ├── 01_xol_pricing.ipynb        # 🔜 coming
+  │   ├── 02_stop_loss_pricing.ipynb  # 🔜 coming
+  │   └── 03_sensitivity_analysis.ipynb # 🔜 coming
   ├── app/
-  │  └── streamlit_app.py
+  │   └── streamlit_app.py            # 🔜 coming
   ├── tests/
-  │  ├── test_treaties.py
-  │  ├── test_pricing.py
-  │  ├── test_frequency.py
-  │  ├── test_severity.py
-  │  ├── test_simulation.py
-  │  └── test_risk_measures.py
+  │   ├── test_frequency.py
+  │   ├── test_severity.py
+  │   ├── test_treaties.py
+  │   ├── test_simulation.py
+  │   ├── test_pricing.py
+  │   └── test_risk_measures.py
   ├── examples/
-  │  ├── xol_pricing_example.py
-  │  └── stop_loss_example.py
+  │   └── xol_pricing_example.py      # 🔜 coming
   └── docs/
-     └── methodology.md
+      └── methodology.md              # 🔜 coming
 ```
 
 ---
@@ -176,10 +179,13 @@ from reinsure_pricing.severity import LognormalSeverity
 from reinsure_pricing.treaties import ExcessOfLoss
 from reinsure_pricing.simulation import MonteCarloEngine
 from reinsure_pricing.pricing import TechnicalPricer
+from reinsure_pricing.risk_measures import compute_risk_measures
+from reinsure_pricing.plots import plot_ceded_loss_distribution, plot_sensitivity
+import matplotlib.pyplot as plt
 
 # Define frequency and severity distributions
 frequency = PoissonFrequency(lambda_=120)
-severity = LognormalSeverity(mu=10.5, sigma=1.2)
+severity  = LognormalSeverity(mu=10.5, sigma=1.2)
 
 # Define the reinsurance treaty: 5M xs 1M per occurrence
 treaty = ExcessOfLoss(retention=1_000_000, limit=5_000_000)
@@ -192,8 +198,11 @@ engine = MonteCarloEngine(
     n_simulations=100_000,
     random_state=42
 )
-
 results = engine.run()
+
+# Compute full risk measures
+rm = compute_risk_measures(results, treaty_limit=treaty.limit)
+print(rm.summary())
 
 # Compute the technical premium
 pricer = TechnicalPricer(
@@ -203,29 +212,83 @@ pricer = TechnicalPricer(
     profit_load=0.08,
     cost_of_capital=0.10
 )
+print(f"Technical Premium : {pricer.technical_premium():,.0f}")
+print(f"Rate on Line      : {pricer.rate_on_line(treaty_limit=treaty.limit):.2%}")
 
-premium = pricer.technical_premium()
+# Plot 1 — ceded loss distribution
+plot_ceded_loss_distribution(
+    results=results,
+    risk_measures=rm,
+    treaty_limit=treaty.limit,
+    title="5M xs 1M XL Layer — Ceded Loss Distribution",
+)
 
-print(results.summary())
-print(f"Technical Premium : {premium:,.0f}")
-print(f"Rate on Line      : {pricer.rate_on_line(treaty_limit=5_000_000):.2%}")
+# Plot 2 — sensitivity: vary retention
+retentions = [500_000, 750_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000]
+premiums_list = []
+ecls_list = []
+
+for ret in retentions:
+    t = ExcessOfLoss(retention=ret, limit=5_000_000)
+    e = MonteCarloEngine(frequency, severity, t,
+                         n_simulations=50_000, random_state=42)
+    r = e.run()
+    p = TechnicalPricer(
+        expected_ceded_loss=r.expected_ceded_loss,
+        tvar_99=r.tvar_99,
+        expense_load=0.05,
+        profit_load=0.08,
+        cost_of_capital=0.10,
+    )
+    premiums_list.append(p.technical_premium())
+    ecls_list.append(r.expected_ceded_loss)
+
+plot_sensitivity(
+    parameter_values=[r/1e6 for r in retentions],
+    premiums=premiums_list,
+    ecls=ecls_list,
+    parameter_name="Retention (M€)",
+)
+plt.show()
 ```
 
 ---
 
-## Example Output
+## Expected Output
 
-The table below shows illustrative output for the quick start example above. All values are placeholder figures for demonstration purposes only and do not reflect any real portfolio or market data.
+Running `python run.py` produces the following printed output and two matplotlib plots.
 
-| Metric | Value (Illustrative) |
-|---|---|
-| Expected Ceded Loss | 1,243,500 |
-| Standard Deviation | 876,200 |
-| VaR 99% | 4,102,000 |
-| TVaR 99% | 4,687,000 |
-| Probability of Attachment | 34.2% |
-| Technical Premium | 1,718,960 |
-| Rate on Line | 34.38% |
+**Printed output:**
+
+```
+─────────────────────────────────────────────
+              RISK MEASURES
+─────────────────────────────────────────────
+Expected Ceded Loss   :         184,454
+Std Deviation         :         515,188
+Coeff of Variation    :           2.793
+Skewness              :           4.218
+─────────────────────────────────────────────
+VaR  95%              :       1,243,721
+VaR  99%              :       2,542,759
+VaR  99.5%            :       3,198,442
+─────────────────────────────────────────────
+TVaR 95%              :       2,187,334
+TVaR 99%              :       3,675,235
+TVaR 99.5%            :       4,102,918
+─────────────────────────────────────────────
+Prob of Attachment    :           29.1%
+Prob of Exhaustion    :            2.3%
+─────────────────────────────────────────────
+Technical Premium     :         557,511
+Rate on Line          :          11.15%
+```
+
+**Plot 1 — Ceded Loss Distribution:**
+Histogram of simulated annual ceded losses with VaR 95%, VaR 99%, VaR 99.5%, TVaR 99%, and treaty limit annotated as vertical lines.
+
+**Plot 2 — Sensitivity Analysis:**
+Line chart showing how the technical premium and ECL vary as the retention increases from 500K to 3M, with all other parameters held constant.
 
 ---
 
