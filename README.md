@@ -117,17 +117,17 @@ reinsurance-layer-pricing-engine/
   ├── src/
   │   └── reinsure_pricing/
   │       ├── __init__.py
-  │       ├── frequency.py            # ✅ implemented
-  │       ├── severity.py             # ✅ implemented
-  │       ├── treaties.py             # ✅ implemented
-  │       ├── simulation.py           # ✅ implemented
-  │       ├── pricing.py              # ✅ implemented
-  │       ├── risk_measures.py        # ✅ implemented
-  │       └── plots.py                # ✅ implemented
+  │       ├── frequency.py              # ✅ implemented
+  │       ├── severity.py               # ✅ implemented
+  │       ├── treaties.py               # ✅ implemented
+  │       ├── simulation.py             # ✅ implemented
+  │       ├── pricing.py                # ✅ implemented
+  │       ├── risk_measures.py          # ✅ implemented
+  │       └── plots.py                  # ✅ implemented
   ├── notebooks/
-  │   ├── 01_xol_pricing.ipynb        # 🔜 coming
-  │   ├── 02_stop_loss_pricing.ipynb  # 🔜 coming
-  │   └── 03_sensitivity_analysis.ipynb # 🔜 coming
+  │   ├── 01_xol_pricing.ipynb          # ✅ implemented
+  │   ├── 02_stop_loss_pricing.ipynb    # ✅ implemented 
+  │   └── 03_sensitivity_analysis.ipynb # ✅ implemented
   ├── app/
   │   └── streamlit_app.py            # 🔜 coming
   ├── tests/
@@ -172,6 +172,10 @@ streamlit
 ## Quick Start Example
 
 The following example prices a 1M xs 1M Excess-of-Loss layer using a Poisson frequency model and a Lognormal severity model over 100,000 simulated accident years.
+
+For a full step-by-step walkthrough with explanations, see the notebooks in the
+`notebooks/` folder. 
+The quick start below runs the complete pipeline in a single script.
 
 ```python
 from reinsure_pricing.frequency import PoissonFrequency
@@ -289,6 +293,20 @@ Histogram of simulated annual ceded losses with VaR 95%, VaR 99%, VaR 99.5%, TVa
 
 **Plot 2 — Sensitivity Analysis:**
 Line chart showing how the technical premium and ECL vary as the retention increases from 500K to 3M, with all other parameters held constant.
+
+---
+
+## Notebooks
+
+Three Jupyter notebooks are provided for deeper walkthroughs of the engine.
+Install Jupyter with `pip install jupyter ipykernel` then launch with
+`jupyter notebook` from the repo root.
+
+| Notebook | Description |
+|---|---|
+| `01_xol_pricing.ipynb` | Full pricing walkthrough for a 5M xs 1M per-occurrence XL layer. Covers distribution setup, simulation, risk measures, technical pricing, and retention sensitivity. |
+| `02_stop_loss_pricing.ipynb` | Pricing walkthrough for a Stop-Loss treaty. Explains the difference between per-occurrence and aggregate structures and includes attachment sensitivity analysis. |
+| `03_sensitivity_analysis.ipynb` | Systematic one-at-a-time sensitivity analysis varying claim frequency, severity tail, retention, cost of capital, and frequency distribution. Includes parameter impact ranking. |
 
 ---
 
