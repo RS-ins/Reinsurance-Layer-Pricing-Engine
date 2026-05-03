@@ -482,12 +482,15 @@ http://localhost:8000/dashboard.html
 
 Do not open `dashboard.html` directly with a `file://` path. The browser may block loading `scenarios.json`.
 
+---
+
 ### Deployed dashboard
 
 The dashboard is deployed with GitHub Pages and is available at:
 
 ```text
 https://rs-ins.github.io/Reinsurance-Layer-Pricing-Engine/
+```
 
 ---
 
