@@ -24,7 +24,7 @@ class PoissonFrequency:
     Parameters
     ----------
     lambda_ : float
-        Expected number of claims per accident year. Must be positive.
+        Expected number of claims per accident year, must be positive.
     """
 
     def __init__(self, lambda_: float):
