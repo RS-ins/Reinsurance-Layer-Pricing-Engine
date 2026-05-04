@@ -140,25 +140,26 @@ This represents the portion of the tail that exceeds the expected loss and requi
 ```text
 reinsurance-layer-pricing-engine/
 ├── README.md
+├── SECURITY.md
 ├── pyproject.toml
-├── run.py                         # Quick start script
+├── run.py                         # quick start script
 ├── src/
 │   └── reinsure_pricing/
 │       ├── __init__.py
-│       ├── frequency.py           # ✅ implemented
-│       ├── severity.py            # ✅ implemented
-│       ├── treaties.py            # ✅ implemented
-│       ├── simulation.py          # ✅ implemented
-│       ├── pricing.py             # ✅ implemented
-│       ├── risk_measures.py       # ✅ implemented
-│       └── plots.py               # ✅ implemented
+│       ├── frequency.py           
+│       ├── severity.py            
+│       ├── treaties.py            
+│       ├── simulation.py          
+│       ├── pricing.py             
+│       ├── risk_measures.py       
+│       └── plots.py               
 ├── notebooks/
-│   ├── 01_xol_pricing.ipynb       # ✅ implemented
-│   ├── 02_stop_loss_pricing.ipynb # ✅ implemented
+│   ├── 01_xol_pricing.ipynb       
+│   ├── 02_stop_loss_pricing.ipynb 
 │   └── 03_sensitivity_analysis.ipynb
 ├── app/
-│   ├── dashboard.html             # ✅ static browser dashboard
-│   ├── generate_scenarios.py      # ✅ pre-computes dashboard scenarios
+│   ├── dashboard.html             # static browser dashboard
+│   ├── generate_scenarios.py      # pre-computes dashboard scenarios
 │   └── scenarios.json             # generated output, required by dashboard
 ├── tests/
 │   ├── test_frequency.py
@@ -167,10 +168,8 @@ reinsurance-layer-pricing-engine/
 │   ├── test_simulation.py
 │   ├── test_pricing.py
 │   └── test_risk_measures.py
-├── examples/
-│   └── xol_pricing_example.py     # coming
 └── docs/
-    └── methodology.md             # coming
+    └── methodology.md             
 ```
 
 ---
