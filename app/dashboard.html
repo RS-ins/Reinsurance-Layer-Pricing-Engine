@@ -36,28 +36,41 @@ input[type=range]::-webkit-slider-thumb:active{transform:scale(1.3)}
 .placeholder .big{font-size:2.5rem;opacity:.3}
 .placeholder p{font-size:.85rem;max-width:400px;line-height:1.6}
 .placeholder code{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:4px}
-.section-title{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px}
+.section-title{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+.section-desc{font-size:.78rem;color:var(--muted);margin-bottom:12px;line-height:1.5}
 .metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
-.metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;transition:border-color .2s}
-.metric:hover{border-color:var(--accent)}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;transition:border-color .2s;cursor:pointer}
+.metric:hover{border-color:var(--accent);background:var(--surface2)}
 .metric.highlight{background:var(--surface2);border-color:var(--premium)}
+.metric.highlight:hover{border-color:var(--accent)}
 .mlabel{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
 .mvalue{font-family:'DM Mono',monospace;font-size:1rem;font-weight:500;color:var(--text)}
 .metric.highlight .mvalue{color:var(--premium)}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
 .chart-card canvas{width:100%!important}
+.chart-desc{font-size:.78rem;color:var(--muted);margin-bottom:12px;line-height:1.5}
 .hist-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
-.hist-card canvas{width:100%!important;height:220px!important}
+.hist-card canvas{width:100%!important;height:240px!important}
 .sens-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.sens-grid .chart-card canvas{height:160px!important}
+.sens-grid .chart-card canvas{height:180px!important}
 .scenario-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;line-height:1.6}
 .scenario-bar span{color:var(--text)}
 .results-area{display:none;flex-direction:column;gap:20px}
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:480px;width:90%;position:relative}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-label{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:6px}
+.modal-value{font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:600;color:var(--text);margin-bottom:16px}
+.modal-desc{font-size:.88rem;color:var(--muted);line-height:1.7}
+.modal-formula{font-family:'DM Mono',monospace;font-size:.78rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-top:12px;color:var(--accent);line-height:1.6}
 footer{background:var(--surface);border-top:1px solid var(--border);padding:10px 20px;font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
 footer a{color:var(--accent);text-decoration:none}
 @media(max-width:900px){.two-col,.sens-grid{grid-template-columns:1fr}}
-@media(max-width:680px){.hamburger{display:flex}.header-badge{display:none}.sidebar{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);z-index:60;width:min(var(--sidebar-w),85vw)}.sidebar.open{transform:translateX(0)}.sidebar-overlay.open{display:block}.main{padding:14px}.metrics-grid{grid-template-columns:repeat(2,1fr)}.hist-card canvas{height:180px!important}}
+@media(max-width:680px){.hamburger{display:flex}.header-badge{display:none}.sidebar{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);z-index:60;width:min(var(--sidebar-w),85vw)}.sidebar.open{transform:translateX(0)}.sidebar-overlay.open{display:block}.main{padding:14px}.metrics-grid{grid-template-columns:repeat(2,1fr)}.hist-card canvas{height:200px!important}}
 @media(max-width:380px){.metrics-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -72,6 +85,18 @@ footer a{color:var(--accent);text-decoration:none}
   </div>
   <div class="header-badge" id="scenario-count">Loading...</div>
 </header>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('open')">✕</button>
+    <div class="modal-label" id="modal-label"></div>
+    <div class="modal-value" id="modal-value"></div>
+    <div class="modal-desc" id="modal-desc"></div>
+    <div class="modal-formula" id="modal-formula" style="display:none"></div>
+  </div>
+</div>
+
 <div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
 <div class="layout">
 <div class="sidebar" id="sidebar">
@@ -142,38 +167,70 @@ footer a{color:var(--accent);text-decoration:none}
   </div>
   <div class="no-result-msg" id="no-result">⚠ No scenario for this combination. Adjust parameters.</div>
 </div>
+
 <div class="main">
   <div class="placeholder" id="placeholder">
     <div class="big">📊</div>
     <p>Move the sliders to explore how treaty structure, frequency, severity, cost of capital, AAL, and AAD affect the technical premium.</p>
-    <p>All scenarios are pre-computed — results update instantly. Phase 4 features: <code>AAL</code>, <code>AAD</code>, <code>Reinstatements</code>.</p>
+    <p>All scenarios are pre-computed — results update instantly. Click any metric card for a detailed explanation.</p>
   </div>
   <div class="results-area" id="results">
     <div class="scenario-bar" id="scenario-bar"></div>
+
     <div class="two-col">
-      <div><div class="section-title">Risk Measures</div><div class="metrics-grid" id="risk-metrics"></div></div>
-      <div><div class="section-title">Technical Pricing</div><div class="metrics-grid" id="price-metrics"></div></div>
+      <div>
+        <div class="section-title">Risk Measures</div>
+        <div class="section-desc">Key statistics computed from 20,000 simulated accident years. Click any card for a detailed explanation.</div>
+        <div class="metrics-grid" id="risk-metrics"></div>
+      </div>
+      <div>
+        <div class="section-title">Technical Pricing</div>
+        <div class="section-desc">Premium breakdown using a cost-of-capital approach consistent with Solvency II. Click any card for a detailed explanation.</div>
+        <div class="metrics-grid" id="price-metrics"></div>
+      </div>
     </div>
+
     <div class="hist-card">
-      <div class="section-title">Ceded Loss Distribution — Approximate PDF</div>
+      <div class="section-title">Ceded Loss Distribution</div>
+      <div class="chart-desc">Approximate distribution of annual ceded losses across 20,000 simulated years, excluding years where the layer was not triggered. Vertical lines mark key risk thresholds — the further right they sit, the heavier the tail.</div>
       <canvas id="chart-hist"></canvas>
     </div>
+
     <div>
       <div class="section-title">Sensitivity Analysis</div>
+      <div class="section-desc">Each chart varies one parameter while holding all others fixed at the current sidebar values. The gap between the red and blue lines is the total loading — the premium the reinsurer charges above the pure expected loss.</div>
       <div class="sens-grid">
-        <div class="chart-card"><div class="section-title" id="sens-ret-title">Premium vs Retention</div><canvas id="chart-retention"></canvas></div>
-        <div class="chart-card"><div class="section-title">Premium vs Severity Tail σ</div><canvas id="chart-sigma"></canvas></div>
-        <div class="chart-card"><div class="section-title">Premium vs Claim Frequency λ</div><canvas id="chart-lambda"></canvas></div>
-        <div class="chart-card"><div class="section-title">Premium vs Cost of Capital</div><canvas id="chart-coc"></canvas></div>
+        <div class="chart-card">
+          <div class="section-title" id="sens-ret-title">Premium vs Retention</div>
+          <div class="chart-desc">Higher retention → fewer losses pierce the layer → lower ECL and premium. The relationship is non-linear — small retention increases have a large effect at low retentions.</div>
+          <canvas id="chart-retention"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="section-title">Premium vs Severity Tail σ</div>
+          <div class="chart-desc">Higher σ produces a heavier-tailed lognormal. Premium rises faster than ECL because TVaR grows disproportionately, inflating the capital load.</div>
+          <canvas id="chart-sigma"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="section-title">Premium vs Claim Frequency λ</div>
+          <div class="chart-desc">More claims per year means more chances for losses to pierce the retention. Both ECL and premium grow roughly linearly with λ for high-excess layers.</div>
+          <canvas id="chart-lambda"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="section-title">Premium vs Cost of Capital</div>
+          <div class="chart-desc">Higher cost of capital increases the capital load linearly. ECL stays flat — it is determined by the simulation, not the pricing parameters.</div>
+          <canvas id="chart-coc"></canvas>
+        </div>
       </div>
     </div>
   </div>
 </div>
 </div>
+
 <footer>
   <span>Reinsurance Layer Pricing Engine — Educational Tool</span>
   <a href="https://github.com/RS-ins/Reinsurance-Layer-Pricing-Engine" target="_blank">GitHub ↗</a>
 </footer>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 const XL_RETENTIONS=[500000,750000,1000000,1500000,2000000];
@@ -186,6 +243,44 @@ const SIGMAS=[0.8,1.0,1.2,1.4,1.6];
 const LAMBDAS=[60,90,120,150,180];
 const COCS=[0.05,0.15];
 let DATA=null,treatyType="xl",charts={};
+
+// ── Metric explanations ──
+const METRIC_INFO = {
+  "ECL":             {desc:"Expected Ceded Loss — the average annual amount the reinsurer pays across all simulated years, including years with zero ceded loss. This is the pure premium: the minimum the reinsurer must charge to break even in expectation.", formula:"ECL = mean(ceded_losses)"},
+  "Std Deviation":   {desc:"Standard deviation of annual ceded losses. A high std relative to ECL (high CV) signals a volatile layer where annual results are unpredictable — some years nothing happens, other years losses are severe.", formula:"Std = σ(ceded_losses)"},
+  "VaR 95%":         {desc:"Value at Risk at 95% confidence. In 95 out of 100 simulated years, ceded losses were below this value. Only 5% of years produced losses above this threshold.", formula:"VaR₉₅ = 95th percentile of ceded losses"},
+  "VaR 99%":         {desc:"Value at Risk at 99% confidence. Only 1 in 100 years produced ceded losses above this level. A standard regulatory risk measure.", formula:"VaR₉₉ = 99th percentile of ceded losses"},
+  "VaR 99.5%":       {desc:"Value at Risk at 99.5% confidence. Only 1 in 200 years produced ceded losses above this level. Used in Solvency II Solvency Capital Requirement calculations.", formula:"VaR₉₉.₅ = 99.5th percentile of ceded losses"},
+  "TVaR 99%":        {desc:"Tail Value at Risk at 99% — the average ceded loss in the worst 1% of years. Always greater than VaR 99%. The gap between TVaR and VaR measures tail severity. Used as the capital proxy in the pricing formula.", formula:"TVaR₉₉ = E[C | C > VaR₉₉]"},
+  "Prob Attachment":  {desc:"Probability of attachment — the fraction of simulated years where the layer was triggered at all (ceded loss > 0). A low attachment probability means the reinsurer rarely pays but pays significantly when it does.", formula:"P(C > 0)"},
+  "Prob Exhaustion":  {desc:"Probability of exhaustion — the fraction of simulated years where the full treaty limit was consumed. High exhaustion probability signals a heavily exposed layer commanding a higher premium.", formula:"P(C ≥ limit)"},
+  "CV":              {desc:"Coefficient of Variation — standard deviation divided by ECL. A scale-free measure of volatility. CV > 1 means the layer is highly volatile. High-excess XL layers typically have CV > 2.", formula:"CV = Std / ECL"},
+  "Skewness":        {desc:"Third standardised central moment. Positive skewness confirms a heavy right tail — extreme years are significantly worse than average. Most reinsurance layers have skewness > 1.", formula:"γ = E[((C - ECL) / Std)³]"},
+  "Gross ECL":       {desc:"The raw expected ceded loss before subtracting reinstatement premium income. This is what the reinsurer expects to pay out on average per year.", formula:"Gross ECL = mean(ceded_losses)"},
+  "Exp Reinst Prem": {desc:"Expected annual reinstatement premium the cedant pays back to the reinsurer. Only triggered when a single claim fully exhausts the per-occurrence limit. Typically small for high-excess layers where individual claims rarely reach the exhaustion point.", formula:"E[reinst premium] = mean(reinst_premiums)"},
+  "Net ECL":         {desc:"Gross ECL minus expected reinstatement premium. This is the net expected cost to the reinsurer after accounting for reinstatement premium income. The technical premium is built on this figure.", formula:"Net ECL = Gross ECL − E[reinst premium]"},
+  "Expense Loading": {desc:"Proportional load for acquisition costs, brokerage, and administration. Applied as a fixed percentage of Net ECL.", formula:"Expense = expense_rate × Net ECL  (default 5%)"},
+  "Profit Loading":  {desc:"Target profit margin as a fraction of Net ECL. Represents the reinsurer's required return on the expected loss component of the premium.", formula:"Profit = profit_rate × Net ECL  (default 8%)"},
+  "Capital Load":    {desc:"The cost of holding risk capital against unexpected losses. The unexpected loss is proxied by TVaR₉₉ − Net ECL. The reinsurer's shareholders require a return on this capital even in years where nothing is paid.", formula:"Capital = CoC × max(TVaR₉₉ − Net ECL, 0)"},
+  "Technical Premium":{desc:"The full risk-adjusted premium — the sum of all four components. This is what the reinsurer needs to charge to cover expected losses, expenses, profit, and the cost of holding risk capital.", formula:"Premium = Net ECL + Expense + Profit + Capital"},
+  "Rate on Line":    {desc:"Technical premium expressed as a percentage of the treaty limit. The standard reinsurance market metric for comparing layers of different sizes. A ROL of 10% means the reinsurer charges 10% of the limit as annual premium.", formula:"ROL = Technical Premium / Limit"},
+};
+
+function showModal(label, value) {
+  const info = METRIC_INFO[label] || {desc:"No description available.", formula:null};
+  document.getElementById("modal-label").textContent = label;
+  document.getElementById("modal-value").textContent = value;
+  document.getElementById("modal-desc").textContent  = info.desc;
+  const fEl = document.getElementById("modal-formula");
+  if (info.formula) { fEl.textContent = info.formula; fEl.style.display = "block"; }
+  else { fEl.style.display = "none"; }
+  document.getElementById("modal-overlay").classList.add("open");
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById("modal-overlay"))
+    document.getElementById("modal-overlay").classList.remove("open");
+}
 
 function toggleSidebar(){document.getElementById("sidebar").classList.toggle("open");document.getElementById("overlay").classList.toggle("open")}
 
@@ -218,13 +313,11 @@ function updateAAL(){
   document.getElementById("aal-val").textContent=mult===0?"None":"€"+(mult*lim/1e6).toFixed(1)+"M ("+mult+"×)";
   updateDisplay();
 }
-
 function updateAAD(){
   const idx=parseInt(document.getElementById("aad").value),v=XL_AADS[idx];
   document.getElementById("aad-val").textContent=v===0?"None":v>=1e6?"€"+(v/1e6).toFixed(1)+"M":"€"+(v/1e3).toFixed(0)+"K";
   updateDisplay();
 }
-
 function setTreaty(t){
   treatyType=t;
   document.getElementById("tab-xl").classList.toggle("active",t==="xl");
@@ -277,136 +370,76 @@ function sensCoc(p){
   return COCS.map(cv=>{const s=arr.find(s=>s.coc===cv&&fix.every(k=>s[k]===p[k]));return s?{x:+(cv*100).toFixed(0),premium:s.premium,ecl:s.ecl}:null}).filter(Boolean);
 }
 
-function buildHistData(s, lim) {
-  const ecl = s.ecl, std = s.std;
-  if (ecl <= 0 || std <= 0) return { labels: [], data: [], vlines: {}, xValues: [] };
-
-  const cv  = std / ecl;
-  const sg2 = Math.log(1 + cv * cv);
-  const mu  = Math.log(ecl) - 0.5 * sg2;
-  const sLN = Math.sqrt(sg2);
-
-  const maxX = Math.min(lim * 1.1, ecl + 6 * std);
-  const N    = 60;
-  const step = maxX / N;
-  const labels = [], data = [], xValues = [];
-  const nonZeroYears = Math.round(s.prob_attachment * 20000);
-
-  function pdf(x) {
-    if (x <= 0) return 0;
-    const z = (Math.log(x) - mu) / sLN;
-    return Math.exp(-0.5 * z * z) / (x * sLN * Math.sqrt(2 * Math.PI));
-  }
-
-  for (let i = 1; i <= N; i++) {
-    const x = i * step;
-    xValues.push(x);                              // raw numeric value
-    labels.push((x / 1e6).toFixed(2) + "M");
-    data.push(Math.round(pdf(x) * step * nonZeroYears));
-  }
-
-  return {
-    labels, data, xValues,
-    vlines: { var95: s.var_95, var99: s.var_99, tvar99: s.tvar_99, limit: lim },
-    step, maxX,
-  };
+function buildHistData(s,lim){
+  const ecl=s.ecl,std=s.std;
+  if(ecl<=0||std<=0)return{labels:[],data:[],vlines:{},maxX:lim};
+  const cv=std/ecl,sg2=Math.log(1+cv*cv),mu=Math.log(ecl)-0.5*sg2,sLN=Math.sqrt(sg2);
+  const maxX=Math.min(lim*1.1,ecl+6*std),N=60,step=maxX/N,labels=[],data=[];
+  const nonZeroYears=Math.round(s.prob_attachment*20000);
+  function pdf(x){if(x<=0)return 0;const z=(Math.log(x)-mu)/sLN;return Math.exp(-0.5*z*z)/(x*sLN*Math.sqrt(2*Math.PI))}
+  for(let i=1;i<=N;i++){const x=i*step;labels.push((x/1e6).toFixed(2)+"M");data.push(Math.round(pdf(x)*step*nonZeroYears))}
+  return{labels,data,maxX,vlines:{var95:s.var_95,var99:s.var_99,tvar99:s.tvar_99,limit:lim}};
 }
 
+const FONT={family:"DM Mono",size:11};
 const CO={responsive:true,maintainAspectRatio:false,animation:{duration:200},
-  plugins:{legend:{labels:{color:"#8b949e",font:{family:"DM Mono",size:9},boxWidth:10}},
-    tooltip:{backgroundColor:"#1c2128",borderColor:"#30363d",borderWidth:1,titleColor:"#e6edf3",bodyColor:"#8b949e",titleFont:{family:"DM Mono",size:10},bodyFont:{family:"DM Mono",size:9}}},
-  scales:{x:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:6},grid:{color:"#21262d"}},
-    y:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:5,callback:v=>v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":v},grid:{color:"#21262d"}}}};
+  plugins:{
+    legend:{labels:{color:"#8b949e",font:FONT,boxWidth:12}},
+    tooltip:{backgroundColor:"#1c2128",borderColor:"#30363d",borderWidth:1,titleColor:"#e6edf3",bodyColor:"#8b949e",titleFont:{family:"DM Mono",size:11},bodyFont:{family:"DM Mono",size:10}}
+  },
+  scales:{
+    x:{ticks:{color:"#8b949e",font:FONT,maxTicksLimit:6},grid:{color:"#21262d"}},
+    y:{ticks:{color:"#8b949e",font:FONT,maxTicksLimit:5,callback:v=>v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":v},grid:{color:"#21262d"}}
+  }
+};
 
 function makeLine(id,data,xLabel){
   if(charts[id])charts[id].destroy();
   const ctx=document.getElementById(id).getContext("2d"),opts=JSON.parse(JSON.stringify(CO));
-  opts.scales.x.title={display:true,text:xLabel,color:"#8b949e",font:{family:"DM Mono",size:8}};
+  opts.scales.x.title={display:true,text:xLabel,color:"#8b949e",font:FONT};
   charts[id]=new Chart(ctx,{type:"line",data:{labels:data.map(d=>d.x),datasets:[
-    {label:"Technical Premium",data:data.map(d=>d.premium),borderColor:"#f0883e",backgroundColor:"rgba(240,136,62,0.08)",borderWidth:2,pointRadius:3,pointBackgroundColor:"#f0883e",tension:0.3,fill:true},
-    {label:"ECL",data:data.map(d=>d.ecl),borderColor:"#58a6ff",backgroundColor:"rgba(88,166,255,0.04)",borderWidth:2,borderDash:[4,3],pointRadius:2,pointBackgroundColor:"#58a6ff",tension:0.3}
+    {label:"Technical Premium",data:data.map(d=>d.premium),borderColor:"#f0883e",backgroundColor:"rgba(240,136,62,0.08)",borderWidth:2,pointRadius:4,pointBackgroundColor:"#f0883e",tension:0.3,fill:true},
+    {label:"ECL",data:data.map(d=>d.ecl),borderColor:"#58a6ff",backgroundColor:"rgba(88,166,255,0.04)",borderWidth:2,borderDash:[4,3],pointRadius:3,pointBackgroundColor:"#58a6ff",tension:0.3}
   ]},options:opts});
 }
 
-function makeHist(id, hd) {
-  if (charts[id]) charts[id].destroy();
-  const ctx = document.getElementById(id).getContext("2d");
-  const vl  = hd.vlines;
-
-  const vlinePlugin = [{
-    id: "vlines",
-    afterDraw(chart) {
-      const { ctx: c, chartArea: ca } = chart;
-      const xMin = 0, xMax = hd.maxX;
-
-      function valToPixel(val) {
-        // linear interpolation from data range to canvas range
-        return ca.left + (val / xMax) * (ca.right - ca.left);
-      }
-
-      [{val: vl.var95,  color:"#E8A838", label:"VaR 95%"},
-       {val: vl.var99,  color:"#D94F3D", label:"VaR 99%"},
-       {val: vl.tvar99, color:"#6A0DAD", label:"TVaR 99%"},
-       {val: vl.limit,  color:"#3fb950", label:"Limit"},
-      ].forEach(({val, color, label}) => {
-        if (val <= 0 || val > xMax * 1.05) return;
-        const x = valToPixel(val);
-        if (x < ca.left || x > ca.right) return;
-        c.save();
-        c.setLineDash([4, 3]);
-        c.strokeStyle = color; c.lineWidth = 2;
-        c.beginPath(); c.moveTo(x, ca.top); c.lineTo(x, ca.bottom); c.stroke();
-        c.setLineDash([]);
-        c.fillStyle = color; c.font = "bold 9px DM Mono";
-        c.fillText(label, x + 3, ca.top + 12);
-        c.restore();
-      });
-    }
-  }];
-
-  charts[id] = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: hd.labels,
-      datasets: [{
-        label: "Simulated years",
-        data:  hd.data,
-        backgroundColor: "rgba(88,166,255,0.55)",
-        borderColor:     "#58a6ff",
-        borderWidth:     0.5,
-        borderRadius:    0,
-        barPercentage:   1.0,
-        categoryPercentage: 1.0,
-      }]
+function makeHist(id,hd){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id).getContext("2d"),vl=hd.vlines,maxX=hd.maxX;
+  const vp=[{id:"vlines",afterDraw(chart){
+    const{ctx:c,chartArea:ca}=chart;
+    [{val:vl.var95,color:"#E8A838",label:"VaR 95%"},{val:vl.var99,color:"#D94F3D",label:"VaR 99%"},{val:vl.tvar99,color:"#6A0DAD",label:"TVaR 99%"},{val:vl.limit,color:"#3fb950",label:"Limit"}]
+    .forEach(({val,color,label})=>{
+      if(!val||val<=0)return;
+      const x=ca.left+(val/maxX)*(ca.right-ca.left);
+      if(x<ca.left||x>ca.right)return;
+      c.save();c.setLineDash([4,3]);c.strokeStyle=color;c.lineWidth=2;
+      c.beginPath();c.moveTo(x,ca.top);c.lineTo(x,ca.bottom);c.stroke();
+      c.setLineDash([]);c.fillStyle=color;c.font="bold 10px DM Mono";
+      c.fillText(label,x+3,ca.top+14);c.restore();
+    });
+  }}];
+  charts[id]=new Chart(ctx,{type:"bar",data:{labels:hd.labels,datasets:[{
+    label:"Simulated years",data:hd.data,
+    backgroundColor:"rgba(88,166,255,0.55)",borderColor:"#58a6ff",
+    borderWidth:0.5,borderRadius:0,barPercentage:1.0,categoryPercentage:1.0
+  }]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},
+    plugins:{
+      legend:{labels:{color:"#8b949e",font:FONT,boxWidth:12}},
+      tooltip:{backgroundColor:"#1c2128",borderColor:"#30363d",borderWidth:1,titleColor:"#e6edf3",bodyColor:"#8b949e",titleFont:{family:"DM Mono",size:11},bodyFont:{family:"DM Mono",size:10},callbacks:{label:ctx=>"~"+ctx.parsed.y+" years"}}
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 200 },
-      plugins: {
-        legend: { labels: { color:"#8b949e", font:{family:"DM Mono",size:9}, boxWidth:10 } },
-        tooltip: {
-          backgroundColor:"#1c2128", borderColor:"#30363d", borderWidth:1,
-          titleColor:"#e6edf3", bodyColor:"#8b949e",
-          titleFont:{family:"DM Mono",size:10}, bodyFont:{family:"DM Mono",size:9},
-          callbacks: { label: ctx => "~" + ctx.parsed.y + " years" }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { color:"#8b949e", font:{family:"DM Mono",size:8}, maxTicksLimit:8 },
-          grid:  { color:"#21262d" },
-          title: { display:true, text:"Annual Ceded Loss", color:"#8b949e", font:{family:"DM Mono",size:8} }
-        },
-        y: {
-          ticks: { color:"#8b949e", font:{family:"DM Mono",size:8}, maxTicksLimit:5 },
-          grid:  { color:"#21262d" },
-          title: { display:true, text:"Years (out of 20,000)", color:"#8b949e", font:{family:"DM Mono",size:8} }
-        }
-      }
-    },
-    plugins: vlinePlugin,
-  });
+    scales:{
+      x:{ticks:{color:"#8b949e",font:FONT,maxTicksLimit:8},grid:{color:"#21262d"},title:{display:true,text:"Annual Ceded Loss",color:"#8b949e",font:FONT}},
+      y:{ticks:{color:"#8b949e",font:FONT,maxTicksLimit:5},grid:{color:"#21262d"},title:{display:true,text:"Years (out of 20,000)",color:"#8b949e",font:FONT}}
+    }},plugins:vp});
+}
+
+function makeMetric(label,value,highlight){
+  return`<div class="metric ${highlight?"highlight":""}" onclick="showModal('${label}','${value}')">
+    <div class="mlabel">${label}</div>
+    <div class="mvalue">${value}</div>
+  </div>`;
 }
 
 function updateDisplay(){
@@ -420,9 +453,26 @@ function updateDisplay(){
   document.getElementById("scenario-bar").innerHTML=treatyType==="xl"
     ?`<span>Treaty:</span>${fmt(p.limit)} xs ${fmt(p.retention)} XL &nbsp;|&nbsp;<span>AAL:</span>${aalL} &nbsp;|&nbsp;<span>AAD:</span>${aadL} &nbsp;|&nbsp;<span>λ:</span>${p.lambda} &nbsp;|&nbsp;<span>σ:</span>${p.sigma} &nbsp;|&nbsp;<span>CoC:</span>${fmtPct(p.coc)}`
     :`<span>Treaty:</span>${fmt(p.cap)} xs ${fmt(p.attachment)} SL &nbsp;|&nbsp;<span>λ:</span>${p.lambda} &nbsp;|&nbsp;<span>σ:</span>${p.sigma} &nbsp;|&nbsp;<span>CoC:</span>${fmtPct(p.coc)}`;
-  document.getElementById("risk-metrics").innerHTML=[["ECL",fmt(s.ecl)],["Std Deviation",fmt(s.std)],["VaR 95%",fmt(s.var_95)],["VaR 99%",fmt(s.var_99)],["VaR 99.5%",fmt(s.var_995)],["TVaR 99%",fmt(s.tvar_99)],["Prob Attachment",fmtPct(s.prob_attachment)],["Prob Exhaustion",fmtPct(s.prob_exhaustion)],["CV",fmtRaw(s.cv)],["Skewness",fmtRaw(s.skewness)]].map(([l,v])=>`<div class="metric"><div class="mlabel">${l}</div><div class="mvalue">${v}</div></div>`).join("");
-  const hr=s.exp_reinst_premium>0;
-  document.getElementById("price-metrics").innerHTML=[["Gross ECL",fmt(s.ecl),false],...(hr?[["Exp Reinst Prem",fmt(s.exp_reinst_premium),false],["Net ECL",fmt(s.net_ecl),false]]:[]),["Expense Loading",fmt(s.expense_loading),false],["Profit Loading",fmt(s.profit_loading),false],["Capital Load",fmt(s.capital_load),false],["Technical Premium",fmt(s.premium),true],["Rate on Line",fmtPct(s.rol),false]].map(([l,v,h])=>`<div class="metric ${h?"highlight":""}"><div class="mlabel">${l}</div><div class="mvalue">${v}</div></div>`).join("");
+
+  document.getElementById("risk-metrics").innerHTML=[
+    ["ECL",fmt(s.ecl),false],["Std Deviation",fmt(s.std),false],
+    ["VaR 95%",fmt(s.var_95),false],["VaR 99%",fmt(s.var_99),false],
+    ["VaR 99.5%",fmt(s.var_995),false],["TVaR 99%",fmt(s.tvar_99),false],
+    ["Prob Attachment",fmtPct(s.prob_attachment),false],["Prob Exhaustion",fmtPct(s.prob_exhaustion),false],
+    ["CV",fmtRaw(s.cv),false],["Skewness",fmtRaw(s.skewness),false],
+  ].map(([l,v,h])=>makeMetric(l,v,h)).join("");
+
+  document.getElementById("price-metrics").innerHTML=[
+    ["Gross ECL",fmt(s.ecl),false],
+    ["Exp Reinst Prem",fmt(s.exp_reinst_premium),false],
+    ["Net ECL",fmt(s.net_ecl||s.ecl),false],
+    ["Expense Loading",fmt(s.expense_loading),false],
+    ["Profit Loading",fmt(s.profit_loading),false],
+    ["Capital Load",fmt(s.capital_load),false],
+    ["Technical Premium",fmt(s.premium),true],
+    ["Rate on Line",fmtPct(s.rol),false],
+  ].map(([l,v,h])=>makeMetric(l,v,h)).join("");
+
   makeHist("chart-hist",buildHistData(s,lim));
   makeLine("chart-retention",sensRetention(p),treatyType==="xl"?"Retention (M€)":"Attachment (M€)");
   makeLine("chart-sigma",sensSigma(p),"Sigma σ");
