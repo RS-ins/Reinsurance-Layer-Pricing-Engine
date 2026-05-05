@@ -279,9 +279,9 @@ function sensCoc(p){
 
 function buildHistData(s, lim) {
   const ecl = s.ecl, std = s.std;
-  if (ecl <= 0 || std <= 0) return { labels: [], data: [], vlines: {} };
+  if (ecl <= 0 || std <= 0) return { labels: [], data: [], vlines: {}, xValues: [] };
 
-  const cv = std / ecl;
+  const cv  = std / ecl;
   const sg2 = Math.log(1 + cv * cv);
   const mu  = Math.log(ecl) - 0.5 * sg2;
   const sLN = Math.sqrt(sg2);
@@ -289,9 +289,7 @@ function buildHistData(s, lim) {
   const maxX = Math.min(lim * 1.1, ecl + 6 * std);
   const N    = 60;
   const step = maxX / N;
-  const labels = [], data = [];
-
-  // estimated number of non-zero years out of 20,000 simulations
+  const labels = [], data = [], xValues = [];
   const nonZeroYears = Math.round(s.prob_attachment * 20000);
 
   function pdf(x) {
@@ -302,14 +300,15 @@ function buildHistData(s, lim) {
 
   for (let i = 1; i <= N; i++) {
     const x = i * step;
+    xValues.push(x);                              // raw numeric value
     labels.push((x / 1e6).toFixed(2) + "M");
-    // convert density to approximate count: pdf × bin_width × n_years
     data.push(Math.round(pdf(x) * step * nonZeroYears));
   }
 
   return {
-    labels, data,
-    vlines: { var95: s.var_95, var99: s.var_99, tvar99: s.tvar_99, limit: lim }
+    labels, data, xValues,
+    vlines: { var95: s.var_95, var99: s.var_99, tvar99: s.tvar_99, limit: lim },
+    step, maxX,
   };
 }
 
@@ -329,25 +328,85 @@ function makeLine(id,data,xLabel){
   ]},options:opts});
 }
 
-function makeHist(id,hd){
-  if(charts[id])charts[id].destroy();
-  const ctx=document.getElementById(id).getContext("2d"),vl=hd.vlines;
-  const vp=[{id:"vlines",afterDraw(chart){
-    const{ctx:c,chartArea:ca,scales}=chart;
-    [{val:vl.var95,color:"#E8A838",label:"VaR 95%"},{val:vl.var99,color:"#D94F3D",label:"VaR 99%"},{val:vl.tvar99,color:"#6A0DAD",label:"TVaR 99%"},{val:vl.limit,color:"#3fb950",label:"Limit"}]
-    .forEach(({val,color,label})=>{
-      const x=scales.x.getPixelForValue((val/1e6).toFixed(2)+"M");
-      if(!x||x<ca.left||x>ca.right)return;
-      c.save();c.setLineDash([4,3]);c.strokeStyle=color;c.lineWidth=1.5;
-      c.beginPath();c.moveTo(x,ca.top);c.lineTo(x,ca.bottom);c.stroke();
-      c.setLineDash([]);c.fillStyle=color;c.font="9px DM Mono";c.fillText(label,x+3,ca.top+10);c.restore();
-    });
-  }}];
-  charts[id]=new Chart(ctx,{type:"line",data:{labels:hd.labels,datasets:[{label:"Approx. PDF",data:hd.data,borderColor:"#58a6ff",backgroundColor:"rgba(88,166,255,0.15)",borderWidth:2,pointRadius:0,tension:0.4,fill:true}]},
-    options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},
-      plugins:{legend:{labels:{color:"#8b949e",font:{family:"DM Mono",size:9},boxWidth:10}},tooltip:{backgroundColor:"#1c2128",borderColor:"#30363d",borderWidth:1,titleColor:"#e6edf3",bodyColor:"#8b949e",titleFont:{family:"DM Mono",size:10},bodyFont:{family:"DM Mono",size:9}}},
-      scales:{x:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:8},grid:{color:"#21262d"},title:{display:true,text:"Annual Ceded Loss",color:"#8b949e",font:{family:"DM Mono",size:8}}},
-        y:{ticks: { color:"#8b949e", font:{family:"DM Mono",size:8}, maxTicksLimit:5 },grid:  { color:"#21262d" },title: { display:true, text:"Years (out of 20,000)", color:"#8b949e",font:{family:"DM Mono",size:8}}}}},plugins:vp});
+function makeHist(id, hd) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext("2d");
+  const vl  = hd.vlines;
+
+  const vlinePlugin = [{
+    id: "vlines",
+    afterDraw(chart) {
+      const { ctx: c, chartArea: ca } = chart;
+      const xMin = 0, xMax = hd.maxX;
+
+      function valToPixel(val) {
+        // linear interpolation from data range to canvas range
+        return ca.left + (val / xMax) * (ca.right - ca.left);
+      }
+
+      [{val: vl.var95,  color:"#E8A838", label:"VaR 95%"},
+       {val: vl.var99,  color:"#D94F3D", label:"VaR 99%"},
+       {val: vl.tvar99, color:"#6A0DAD", label:"TVaR 99%"},
+       {val: vl.limit,  color:"#3fb950", label:"Limit"},
+      ].forEach(({val, color, label}) => {
+        if (val <= 0 || val > xMax * 1.05) return;
+        const x = valToPixel(val);
+        if (x < ca.left || x > ca.right) return;
+        c.save();
+        c.setLineDash([4, 3]);
+        c.strokeStyle = color; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(x, ca.top); c.lineTo(x, ca.bottom); c.stroke();
+        c.setLineDash([]);
+        c.fillStyle = color; c.font = "bold 9px DM Mono";
+        c.fillText(label, x + 3, ca.top + 12);
+        c.restore();
+      });
+    }
+  }];
+
+  charts[id] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: hd.labels,
+      datasets: [{
+        label: "Simulated years",
+        data:  hd.data,
+        backgroundColor: "rgba(88,166,255,0.55)",
+        borderColor:     "#58a6ff",
+        borderWidth:     0.5,
+        borderRadius:    0,
+        barPercentage:   1.0,
+        categoryPercentage: 1.0,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 200 },
+      plugins: {
+        legend: { labels: { color:"#8b949e", font:{family:"DM Mono",size:9}, boxWidth:10 } },
+        tooltip: {
+          backgroundColor:"#1c2128", borderColor:"#30363d", borderWidth:1,
+          titleColor:"#e6edf3", bodyColor:"#8b949e",
+          titleFont:{family:"DM Mono",size:10}, bodyFont:{family:"DM Mono",size:9},
+          callbacks: { label: ctx => "~" + ctx.parsed.y + " years" }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color:"#8b949e", font:{family:"DM Mono",size:8}, maxTicksLimit:8 },
+          grid:  { color:"#21262d" },
+          title: { display:true, text:"Annual Ceded Loss", color:"#8b949e", font:{family:"DM Mono",size:8} }
+        },
+        y: {
+          ticks: { color:"#8b949e", font:{family:"DM Mono",size:8}, maxTicksLimit:5 },
+          grid:  { color:"#21262d" },
+          title: { display:true, text:"Years (out of 20,000)", color:"#8b949e", font:{family:"DM Mono",size:8} }
+        }
+      }
+    },
+    plugins: vlinePlugin,
+  });
 }
 
 function updateDisplay(){
