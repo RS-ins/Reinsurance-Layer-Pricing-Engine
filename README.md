@@ -208,9 +208,9 @@ Running `python run.py` produces printed output for six examples followed
 by two matplotlib plots. Each example follows the same structure:
 
 ```
-=======================================================
+=============================================
 EXAMPLE N — Description
-=======================================================
+=============================================
 ─────────────────────────────────────────────
               RISK MEASURES
 ─────────────────────────────────────────────
