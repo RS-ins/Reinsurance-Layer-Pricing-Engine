@@ -22,136 +22,79 @@ from reinsure_pricing.treaties import ExcessOfLoss, StopLoss
 
 
 @dataclass
+@dataclass
 class SimulationResults:
     """
     Container for the output of a Monte Carlo simulation run.
 
-    Stores the full array of simulated annual ceded losses and provides
-    methods for computing risk measures directly from the empirical
-    distribution.
-
     Parameters
     ----------
     ceded_losses : np.ndarray
-        Array of shape (n_simulations,) containing the total ceded loss
-        for each simulated accident year. Years with no ceded loss are
-        stored as 0.0.
+        Array of shape (n_simulations,) containing the total ceded
+        loss for each simulated accident year.
+    reinstatement_premiums : np.ndarray, optional
+        Array of shape (n_simulations,) containing the reinstatement
+        premium payable by the cedant for each accident year.
+        None if no ReinstatementProvision was passed to run().
     """
-
-    ceded_losses: np.ndarray
+    ceded_losses:            np.ndarray
+    reinstatement_premiums:  np.ndarray | None = None
 
     @property
     def expected_ceded_loss(self) -> float:
-        """
-        Expected Ceded Loss (ECL) — the pure premium.
-
-        Computed as the arithmetic mean of all simulated annual ceded
-        losses, including years with zero cession. This is the amount
-        the reinsurer expects to pay on average per accident year.
-        """
+        """Expected Ceded Loss (ECL) — the pure premium."""
         return float(self.ceded_losses.mean())
 
     @property
     def std_ceded_loss(self) -> float:
-        """
-        Standard deviation of the simulated ceded loss distribution.
-
-        Measures the spread of annual ceded losses around the ECL.
-        A high standard deviation relative to the ECL indicates a
-        volatile layer where annual results are unpredictable.
-        """
+        """Standard deviation of the simulated ceded loss distribution."""
         return float(self.ceded_losses.std())
 
     def var(self, alpha: float = 0.99) -> float:
-        """
-        Value at Risk (VaR) at confidence level alpha.
-
-        VaR answers: 'what is the ceded loss level that will NOT be
-        exceeded in alpha% of accident years?'
-
-        For example, VaR 99% = 2.5M means that in 99 out of 100
-        simulated years, ceded losses were below 2.5M. Only 1 in 100
-        years produced a ceded loss above this threshold.
-
-        Parameters
-        ----------
-        alpha : float
-            Confidence level, between 0 and 1. Common values are
-            0.95, 0.99, and 0.995. Default is 0.99.
-
-        Returns
-        -------
-        float
-            The alpha-quantile of the simulated ceded loss distribution.
-        """
+        """Value at Risk at confidence level alpha."""
         return float(np.quantile(self.ceded_losses, alpha))
 
     def tvar(self, alpha: float = 0.99) -> float:
-        """
-        Tail Value at Risk (TVaR) at confidence level alpha.
-
-        Also known as Conditional Tail Expectation (CTE) or Expected
-        Shortfall (ES). TVaR answers: 'given that we are already in
-        the worst (1-alpha)% of years, what is the average ceded loss?'
-
-        TVaR is always >= VaR at the same confidence level. The gap
-        between TVaR and VaR indicates how severe losses are once the
-        VaR threshold is breached — a large gap signals a heavy tail.
-
-        TVaR is used in the pricing formula as the capital proxy:
-            capital_load = cost_of_capital × max(TVaR99 - ECL, 0)
-
-        Parameters
-        ----------
-        alpha : float
-            Confidence level, between 0 and 1. Default is 0.99.
-
-        Returns
-        -------
-        float
-            Mean of all simulated ceded losses that exceed VaR(alpha).
-            Returns VaR(alpha) if no losses exceed the threshold.
-        """
-        var = self.var(alpha)
+        """Tail Value at Risk at confidence level alpha."""
+        var  = self.var(alpha)
         tail = self.ceded_losses[self.ceded_losses > var]
         return float(tail.mean()) if len(tail) > 0 else var
 
     @property
     def tvar_99(self) -> float:
-        """Convenience property for TVaR at 99% — used directly by TechnicalPricer."""
+        """Convenience property for TVaR at 99%."""
         return self.tvar(0.99)
 
     def prob_attachment(self) -> float:
-        """
-        Probability of attachment — fraction of years the treaty is triggered.
-
-        A year attaches when at least one individual loss (XL) or the
-        aggregate loss (Stop-Loss) exceeds the retention or attachment
-        point, resulting in a positive ceded loss.
-
-        In commercial terms: how often will the reinsurer receive a
-        claim from the cedant in a given accident year?
-        """
+        """Fraction of years the treaty was triggered."""
         return float((self.ceded_losses > 0).mean())
 
     def prob_exhaustion(self, treaty_limit: float) -> float:
-        """
-        Probability of exhaustion — fraction of years the full limit is used.
-
-        A year exhausts when the total annual ceded loss equals or
-        exceeds the treaty limit. High exhaustion probability signals
-        that the layer is very exposed and should command a higher premium.
-
-        In commercial terms: how often will the reinsurer pay the
-        maximum possible amount in a given accident year?
-
-        Parameters
-        ----------
-        treaty_limit : float
-            The maximum annual ceded loss — the treaty limit for XL
-            or the cap for Stop-Loss.
-        """
+        """Fraction of years the full treaty limit was consumed."""
         return float((self.ceded_losses >= treaty_limit).mean())
+
+    @property
+    def expected_reinstatement_premium(self) -> float:
+        """
+        Expected annual reinstatement premium payable by the cedant.
+
+        Returns 0.0 if no ReinstatementProvision was used.
+        The net expected cost to the cedant is:
+            ECL - expected_reinstatement_premium
+        because the reinstatement premium flows back to the reinsurer.
+        """
+        if self.reinstatement_premiums is None:
+            return 0.0
+        return float(self.reinstatement_premiums.mean())
+
+    @property
+    def net_expected_recovery(self) -> float:
+        """
+        Net expected recovery to the cedant after reinstatement premiums.
+
+        net_recovery = ECL - expected_reinstatement_premium
+        """
+        return self.expected_ceded_loss - self.expected_reinstatement_premium
 
     def summary(self) -> str:
         """Return a formatted string of key simulation statistics."""
@@ -162,8 +105,12 @@ class SimulationResults:
             f"TVaR 99%            : {self.tvar_99:>15,.0f}",
             f"Prob of Attachment  : {self.prob_attachment():>15.1%}",
         ]
+        if self.reinstatement_premiums is not None:
+            lines += [
+                f"Exp Reinst Premium  : {self.expected_reinstatement_premium:>15,.0f}",
+                f"Net Expected Recov  : {self.net_expected_recovery:>15,.0f}",
+            ]
         return "\n".join(lines)
-
 
 class MonteCarloEngine:
     """
@@ -210,77 +157,81 @@ class MonteCarloEngine:
         self.n_simulations = n_simulations
         self.rng = np.random.default_rng(random_state)
 
-    def run(self) -> SimulationResults:
+    def run(self, reinstatement: "ReinstatementProvision | None" = None) -> SimulationResults:
         """
         Execute the Monte Carlo simulation and return results.
 
-        The simulation is structured differently depending on treaty type:
+        When a ReinstatementProvision is passed, the simulation also
+        computes reinstatement premiums for each accident year and
+        returns them in SimulationResults alongside the ceded losses.
 
-        For ExcessOfLoss:
-            Loops year by year. For each year, draws individual losses
-            and applies the treaty per occurrence. The annual ceded loss
-            is the sum of per-occurrence ceded amounts. Cannot be fully
-            vectorised because the treaty must be applied to each claim
-            individually before summing.
+        For ExcessOfLoss with AAL or AAD active, uses apply_detailed()
+        to get per-claim ceded amounts and reinstatement counts.
 
-        For StopLoss:
-            Fully vectorised. All individual losses across all years are
-            drawn in a single numpy call, then split into per-year chunks
-            using numpy.split(). The treaty is then applied to each year's
-            aggregate. This is significantly faster than looping year by
-            year for large simulations.
+        For ExcessOfLoss without AAL/AAD, uses the fast vectorised
+        apply() path unless reinstatement tracking is needed.
 
-        In both cases, years with zero claims are skipped and assigned
-        a ceded loss of 0.0, avoiding unnecessary severity sampling.
+        For StopLoss, uses the vectorised aggregate approach.
+
+        Parameters
+        ----------
+        reinstatement : ReinstatementProvision, optional
+            If provided, computes reinstatement premiums for each year.
+            Only applicable to ExcessOfLoss treaties.
 
         Returns
         -------
         SimulationResults
-            Container with the full array of simulated annual ceded
-            losses, ready for risk measure computation and pricing.
-
-        Notes
-        -----
-        The vectorised Stop-Loss approach draws all losses at once using
-        np.split() with cumulative claim counts as split indices. This
-        avoids 100,000 individual Python loop iterations and reduces
-        runtime from minutes to seconds for large simulations.
+            Container with ceded losses and optional reinstatement premiums.
         """
+        from reinsure_pricing.treaties import ExcessOfLoss, StopLoss, ReinstatementProvision
 
-        # Draw all claim counts for all years at once — vectorised
-        claim_counts = self.frequency.sample(self.n_simulations, self.rng)
+        claim_counts   = self.frequency.sample(self.n_simulations, self.rng)
+        ceded_losses   = np.zeros(self.n_simulations)
+        reinst_premiums = np.zeros(self.n_simulations) if reinstatement else None
 
-        # Pre-allocate output array — years with no claims stay at 0
-        ceded_losses = np.zeros(self.n_simulations)
+        needs_detailed = (
+            isinstance(self.treaty, ExcessOfLoss) and (
+                self.treaty.aggregate_limit is not None or
+                self.treaty.aggregate_deductible is not None or
+                reinstatement is not None
+            )
+        )
 
         if isinstance(self.treaty, ExcessOfLoss):
             for i, n in enumerate(claim_counts):
                 if n == 0:
-                    # no claims this year — reinsurer pays nothing
                     continue
-                # draw individual losses, apply treaty per occurrence, sum
+
                 losses = self.severity.sample(int(n), self.rng)
-                ceded_losses[i] = self.treaty.apply(losses).sum()
+
+                if needs_detailed:
+                    # Detailed path — track per-claim ceded amounts
+                    result = self.treaty.apply_detailed(losses)
+                    ceded_losses[i] = result.annual_ceded
+
+                    if reinstatement is not None:
+                        # Compute reinstatement premium for this year
+                        reinst_premiums[i] = reinstatement.reinstatement_premium(
+                            result.n_reinstatements_used
+                        )
+                else:
+                    # Fast vectorised path
+                    ceded_losses[i] = self.treaty.apply(losses).sum()
 
         elif isinstance(self.treaty, StopLoss):
             total_claims = int(claim_counts.sum())
             if total_claims > 0:
-                # Draw all individual losses across all years in one call.
-                # Far faster than sampling year by year in a Python loop.
                 all_losses = self.severity.sample(total_claims, self.rng)
-
-                # Split the flat loss array into per-year chunks.
-                # np.cumsum(claim_counts[:-1]) gives the split indices —
-                # e.g. counts [3, 2, 4] → splits at [3, 5] →
-                # chunks [losses[0:3], losses[3:5], losses[5:9]]
                 splits = np.split(all_losses, np.cumsum(claim_counts[:-1]))
 
                 for i, year_losses in enumerate(splits):
                     if len(year_losses) == 0:
-                        # year had zero claims — ceded loss stays at 0
                         continue
-                    # aggregate all losses for the year, then apply treaty
                     aggregate = year_losses.sum()
                     ceded_losses[i] = self.treaty.apply(aggregate)
 
-        return SimulationResults(ceded_losses=ceded_losses)
+        return SimulationResults(
+            ceded_losses=ceded_losses,
+            reinstatement_premiums=reinst_premiums,
+        )

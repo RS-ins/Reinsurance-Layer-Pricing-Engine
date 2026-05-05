@@ -4,7 +4,7 @@ from reinsure_pricing.frequency import PoissonFrequency
 from reinsure_pricing.severity import LognormalSeverity
 from reinsure_pricing.treaties import ExcessOfLoss, StopLoss
 from reinsure_pricing.simulation import MonteCarloEngine, SimulationResults
-
+from reinsure_pricing.treaties import ReinstatementProvision
 
 FREQ = PoissonFrequency(lambda_=120)
 SEV = LognormalSeverity(mu=10.5, sigma=1.2)
@@ -63,3 +63,46 @@ def test_prob_attachment_between_0_and_1():
 def test_rejects_zero_simulations():
     with pytest.raises(ValueError):
         MonteCarloEngine(FREQ, SEV, XL, n_simulations=0)
+
+def test_simulation_with_aal():
+    freq    = PoissonFrequency(lambda_=120)
+    sev     = LognormalSeverity(mu=10.5, sigma=1.2)
+    treaty  = ExcessOfLoss(retention=1_000_000, limit=5_000_000,
+                           aggregate_limit=10_000_000)
+    engine  = MonteCarloEngine(freq, sev, treaty, n_simulations=10_000)
+    results = engine.run()
+    assert (results.ceded_losses <= 10_000_000).all()
+
+
+def test_simulation_with_aad():
+    freq    = PoissonFrequency(lambda_=120)
+    sev     = LognormalSeverity(mu=10.5, sigma=1.2)
+    treaty  = ExcessOfLoss(retention=1_000_000, limit=5_000_000,
+                           aggregate_deductible=1_000_000)
+    engine  = MonteCarloEngine(freq, sev, treaty, n_simulations=10_000)
+    results = engine.run()
+    assert (results.ceded_losses >= 0).all()
+
+
+def test_simulation_with_reinstatement():
+    freq    = PoissonFrequency(lambda_=120)
+    sev     = LognormalSeverity(mu=10.5, sigma=1.2)
+    treaty  = ExcessOfLoss(retention=1_000_000, limit=5_000_000)
+    engine  = MonteCarloEngine(freq, sev, treaty, n_simulations=10_000)
+    rp      = ReinstatementProvision(n_free=1, n_paid=1,
+                                     original_premium=500_000)
+    results = engine.run(reinstatement=rp)
+    assert results.reinstatement_premiums is not None
+    assert len(results.reinstatement_premiums) == 10_000
+    assert (results.reinstatement_premiums >= 0).all()
+
+
+def test_net_expected_recovery_leq_ecl():
+    freq    = PoissonFrequency(lambda_=120)
+    sev     = LognormalSeverity(mu=10.5, sigma=1.2)
+    treaty  = ExcessOfLoss(retention=1_000_000, limit=5_000_000)
+    engine  = MonteCarloEngine(freq, sev, treaty, n_simulations=10_000)
+    rp      = ReinstatementProvision(n_free=1, n_paid=1,
+                                     original_premium=500_000)
+    results = engine.run(reinstatement=rp)
+    assert results.net_expected_recovery <= results.expected_ceded_loss

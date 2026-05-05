@@ -7,28 +7,33 @@ The TechnicalPricer takes the output of a Monte Carlo simulation and
 computes a risk-adjusted technical premium using a cost-of-capital
 loading approach consistent with Solvency II principles.
 
-The premium is built up from four components:
+The base premium formula is:
 
     Technical Premium = ECL
                       + expense_load  × ECL
                       + profit_load   × ECL
                       + cost_of_capital × max(TVaR99 - ECL, 0)
 
-where:
-    ECL              = Expected Ceded Loss (pure premium)
-    expense_load     = proportional load for acquisition and admin costs
-    profit_load      = target profit margin as a fraction of ECL
-    cost_of_capital  = required return on the risk capital held to
-                       support the unexpected loss (TVaR99 - ECL)
+Phase 4 addition — Reinstatement Premium Adjustment:
 
-The capital load is applied only to the unexpected loss — the portion
-of the tail that exceeds the ECL and requires actual capital support.
-This reflects the economic reality that the reinsurer must hold capital
-against adverse deviations, not against the expected loss which is
-covered by the pure premium.
+When reinstatement provisions are active, the technical premium is
+adjusted to account for the expected reinstatement premium income
+the reinsurer will receive from the cedant. The net cost to the
+cedant is:
+
+    Net ECL = ECL - E[Reinstatement Premium]
+
+The technical premium is computed on the Net ECL, and the loadings
+are applied to the net figure. This reflects the economic reality
+that reinstatement premiums partially offset the reinsurer's
+expected loss payments.
+
+The pricing result reports both gross and net figures so the user
+can see the full impact of the reinstatement provision.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -43,35 +48,50 @@ class PricingResult:
     Parameters
     ----------
     expected_ceded_loss : float
-        The pure premium — mean simulated ceded loss.
+        Gross ECL — mean simulated ceded loss before reinstatement
+        premium adjustment.
+    expected_reinstatement_premium : float
+        Expected annual reinstatement premium payable by the cedant.
+        Zero if no reinstatement provision is active.
+    net_expected_ceded_loss : float
+        Net ECL after subtracting expected reinstatement premium.
+        This is the base for all loadings when reinstatements are active.
     expense_loading : float
-        Absolute expense load in currency units (expense_load × ECL).
+        Absolute expense load in currency units (expense_load × net ECL).
     profit_loading : float
-        Absolute profit load in currency units (profit_load × ECL).
+        Absolute profit load in currency units (profit_load × net ECL).
     capital_load : float
         Absolute capital load in currency units
-        (cost_of_capital × max(TVaR99 - ECL, 0)).
+        (cost_of_capital × max(TVaR99 - net ECL, 0)).
     technical_premium : float
-        Sum of all four components — the final risk-adjusted premium.
+        Sum of all components — the final risk-adjusted premium.
     rate_on_line : float
         Technical premium as a fraction of the treaty limit.
-        Standard reinsurance market metric for comparing layer pricing.
     treaty_limit : float
         Treaty limit used to compute the rate on line.
     """
 
-    expected_ceded_loss: float
-    expense_loading: float
-    profit_loading: float
-    capital_load: float
-    technical_premium: float
-    rate_on_line: float
-    treaty_limit: float
+    expected_ceded_loss:            float
+    expected_reinstatement_premium: float
+    net_expected_ceded_loss:        float
+    expense_loading:                float
+    profit_loading:                 float
+    capital_load:                   float
+    technical_premium:              float
+    rate_on_line:                   float
+    treaty_limit:                   float
 
     def summary(self) -> str:
         """Return a formatted breakdown of all premium components."""
         lines = [
-            f"Expected Ceded Loss  : {self.expected_ceded_loss:>15,.0f}",
+            f"Gross ECL            : {self.expected_ceded_loss:>15,.0f}",
+        ]
+        if self.expected_reinstatement_premium > 0:
+            lines += [
+                f"Exp Reinst Premium   : {self.expected_reinstatement_premium:>15,.0f}",
+                f"Net ECL              : {self.net_expected_ceded_loss:>15,.0f}",
+            ]
+        lines += [
             f"Expense Loading      : {self.expense_loading:>15,.0f}",
             f"Profit Loading       : {self.profit_loading:>15,.0f}",
             f"Capital Load         : {self.capital_load:>15,.0f}",
@@ -88,46 +108,45 @@ class TechnicalPricer:
 
     The pricing formula follows a cost-of-capital approach:
 
-        Premium = ECL
-                + expense_load  × ECL          (expense recovery)
-                + profit_load   × ECL          (target profit margin)
-                + cost_of_capital × max(TVaR99 - ECL, 0)  (capital charge)
+        Premium = net_ECL
+                + expense_load  × net_ECL
+                + profit_load   × net_ECL
+                + cost_of_capital × max(TVaR99 - net_ECL, 0)
 
-    The capital charge compensates the reinsurer for holding risk capital
-    against unexpected losses. The unexpected loss is proxied by the
-    difference between TVaR99 and ECL — the portion of the tail that
-    exceeds the expected loss and cannot be funded from premium alone.
+    where net_ECL = ECL - E[reinstatement_premium].
+
+    When no reinstatement provision is active, net_ECL = ECL and
+    the formula reduces to the original four-component premium.
 
     Parameters
     ----------
     expected_ceded_loss : float
         Mean simulated ceded loss from MonteCarloEngine.run().
-        This is the pure premium — the minimum the reinsurer must
-        charge to break even on average. Must be non-negative.
+        Must be non-negative.
     tvar_99 : float
         TVaR at 99% confidence from SimulationResults.tvar_99.
-        Used as the capital proxy — represents the average loss in
-        the worst 1% of years, which defines the capital requirement.
+        Used as the capital proxy.
     expense_load : float
-        Proportional expense load as a fraction of ECL.
-        Covers acquisition costs, brokerage, and administration.
+        Proportional expense load as a fraction of net ECL.
         Default is 0.05 (5%).
     profit_load : float
-        Target profit margin as a fraction of ECL.
+        Target profit margin as a fraction of net ECL.
         Default is 0.08 (8%).
     cost_of_capital : float
-        Required return on risk capital as a fraction.
-        Typically set to the reinsurer's internal hurdle rate.
-        Default is 0.10 (10%), consistent with typical Solvency II
-        cost-of-capital assumptions.
+        Required return on risk capital. Default is 0.10 (10%).
+    expected_reinstatement_premium : float, optional
+        Expected annual reinstatement premium from
+        SimulationResults.expected_reinstatement_premium.
+        Default is 0.0 (no reinstatement provision).
     """
 
     def __init__(self,
-                 expected_ceded_loss: float,
-                 tvar_99: float,
-                 expense_load: float = 0.05,
-                 profit_load: float = 0.08,
-                 cost_of_capital: float = 0.10):
+                 expected_ceded_loss:            float,
+                 tvar_99:                        float,
+                 expense_load:                   float = 0.05,
+                 profit_load:                    float = 0.08,
+                 cost_of_capital:                float = 0.10,
+                 expected_reinstatement_premium: float = 0.0):
 
         if expected_ceded_loss < 0:
             raise ValueError("expected_ceded_loss must be non-negative")
@@ -137,49 +156,56 @@ class TechnicalPricer:
             raise ValueError("profit_load must be between 0 and 1")
         if not 0 <= cost_of_capital < 1:
             raise ValueError("cost_of_capital must be between 0 and 1")
+        if expected_reinstatement_premium < 0:
+            raise ValueError("expected_reinstatement_premium must be non-negative")
 
-        self.expected_ceded_loss = expected_ceded_loss
-        self.tvar_99 = tvar_99
-        self.expense_load = expense_load
-        self.profit_load = profit_load
-        self.cost_of_capital = cost_of_capital
+        self.expected_ceded_loss            = expected_ceded_loss
+        self.tvar_99                        = tvar_99
+        self.expense_load                   = expense_load
+        self.profit_load                    = profit_load
+        self.cost_of_capital                = cost_of_capital
+        self.expected_reinstatement_premium = expected_reinstatement_premium
+
+    @property
+    def net_ecl(self) -> float:
+        """
+        Net ECL after subtracting expected reinstatement premium.
+
+        This is the base for all loadings. When no reinstatement
+        provision is active, net_ecl == expected_ceded_loss.
+        """
+        return max(self.expected_ceded_loss - self.expected_reinstatement_premium, 0.0)
 
     def technical_premium(self) -> float:
         """
         Compute the technical premium.
 
-        Sums all four components:
-            ECL + expense loading + profit loading + capital load
+        Builds the premium on the net ECL base:
+            net_ECL + expense loading + profit loading + capital load
 
         Returns
         -------
         float
             The risk-adjusted technical premium in currency units.
         """
-        ecl     = self.expected_ceded_loss
+        ecl     = self.net_ecl
         expense = self.expense_load * ecl
         profit  = self.profit_load * ecl
 
-        # Capital load: required return on the unexpected loss only.
-        # max(..., 0) ensures no negative capital load if TVaR < ECL
-        # (can happen with very short tails or few simulations).
+        # Capital load applied to unexpected loss above net ECL.
+        # max(..., 0) guards against degenerate cases where TVaR < net_ECL.
         capital = self.cost_of_capital * max(self.tvar_99 - ecl, 0)
 
         return ecl + expense + profit + capital
 
     def rate_on_line(self, treaty_limit: float) -> float:
         """
-        Rate on Line (ROL) — technical premium as a fraction of treaty limit.
-
-        The standard reinsurance market metric for comparing the price
-        of layers with different limits. A ROL of 10% means the
-        reinsurer charges 10% of the limit as premium.
+        Rate on Line — technical premium as a fraction of treaty limit.
 
         Parameters
         ----------
         treaty_limit : float
-            The maximum ceded loss under the treaty — the limit for XL
-            or the cap for Stop-Loss.
+            The maximum ceded loss under the treaty.
 
         Returns
         -------
@@ -200,21 +226,23 @@ class TechnicalPricer:
         Returns
         -------
         PricingResult
-            Dataclass containing all premium components and the
-            rate on line, ready for reporting or further analysis.
+            Dataclass containing all premium components, net figures,
+            and the rate on line.
         """
-        ecl     = self.expected_ceded_loss
+        ecl     = self.net_ecl
         expense = self.expense_load * ecl
         profit  = self.profit_load * ecl
         capital = self.cost_of_capital * max(self.tvar_99 - ecl, 0)
         premium = ecl + expense + profit + capital
 
         return PricingResult(
-            expected_ceded_loss=ecl,
-            expense_loading=expense,
-            profit_loading=profit,
-            capital_load=capital,
-            technical_premium=premium,
-            rate_on_line=premium / treaty_limit,
-            treaty_limit=treaty_limit,
+            expected_ceded_loss            = self.expected_ceded_loss,
+            expected_reinstatement_premium = self.expected_reinstatement_premium,
+            net_expected_ceded_loss        = ecl,
+            expense_loading                = expense,
+            profit_loading                 = profit,
+            capital_load                   = capital,
+            technical_premium              = premium,
+            rate_on_line                   = premium / treaty_limit,
+            treaty_limit                   = treaty_limit,
         )

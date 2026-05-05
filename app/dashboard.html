@@ -6,513 +6,75 @@
 <title>Reinsurance Layer Pricing Engine</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:        #0d1117;
-  --surface:   #161b22;
-  --surface2:  #1c2128;
-  --border:    #30363d;
-  --accent:    #58a6ff;
-  --accent2:   #f78166;
-  --accent3:   #3fb950;
-  --text:      #e6edf3;
-  --muted:     #8b949e;
-  --premium:   #f0883e;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── Header ── */
-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 18px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.header-left h1 {
-  font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-.header-left p {
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-top: 2px;
-  font-family: 'DM Mono', monospace;
-}
-.header-badge {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  padding: 4px 10px;
-  border-radius: 20px;
-}
-
-/* ── Layout ── */
-.layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-/* ── Sidebar ── */
-.sidebar {
-  width: 280px;
-  min-width: 280px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 20px 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.sidebar-section {
-  margin-bottom: 20px;
-}
-
-.sidebar-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: .12em;
-  color: var(--accent);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
-}
-
-.control-group {
-  margin-bottom: 12px;
-}
-
-.control-group label {
-  font-size: 0.78rem;
-  color: var(--muted);
-  display: block;
-  margin-bottom: 4px;
-}
-
-.control-group .val {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.78rem;
-  color: var(--accent);
-  float: right;
-}
-
-select, input[type=range] {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 6px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.82rem;
-}
-
-select {
-  padding: 7px 10px;
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
-
-input[type=range] {
-  -webkit-appearance: none;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--border);
-  outline: none;
-  padding: 0;
-  border: none;
-  cursor: pointer;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: pointer;
-}
-
-.tab-row {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-.tab-btn {
-  flex: 1;
-  padding: 7px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--muted);
-  border-radius: 6px;
-  font-size: 0.78rem;
-  cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
-  transition: all .15s;
-  text-align: center;
-}
-.tab-btn.active {
-  background: var(--accent);
-  color: #0d1117;
-  border-color: var(--accent);
-  font-weight: 600;
-}
-
-.no-result-msg {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--accent2);
-  background: rgba(247,129,102,0.1);
-  border: 1px solid var(--accent2);
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-top: 6px;
-  display: none;
-}
-
-/* ── Main ── */
-.main {
-  flex: 1;
-  padding: 28px 32px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* ── Placeholder ── */
-.placeholder {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  color: var(--muted);
-  text-align: center;
-  padding: 80px 40px;
-}
-.placeholder .big {
-  font-size: 3rem;
-  opacity: 0.3;
-}
-.placeholder p {
-  font-size: 0.9rem;
-  max-width: 380px;
-  line-height: 1.6;
-}
-.placeholder code {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.8rem;
-  color: var(--accent);
-  background: var(--surface2);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* ── Section title ── */
-.section-title {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  color: var(--muted);
-  margin-bottom: 12px;
-}
-
-/* ── Metrics grid ── */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-}
-
-.metric {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px 16px;
-  transition: border-color .2s;
-}
-.metric:hover { border-color: var(--accent); }
-.metric.highlight {
-  background: var(--surface2);
-  border-color: var(--premium);
-}
-.metric .mlabel {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-.metric .mvalue {
-  font-family: 'DM Mono', monospace;
-  font-size: 1.05rem;
-  font-weight: 500;
-  color: var(--text);
-}
-.metric.highlight .mvalue { color: var(--premium); }
-
-/* ── Two column layout for metrics ── */
-.two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-/* ── Chart area ── */
-.chart-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-}
-.chart-card img {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 4px;
-}
-
-/* ── Scenario info bar ── */
-.scenario-bar {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 16px;
-  font-family: 'DM Mono', monospace;
-  font-size: 0.75rem;
-  color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-.scenario-bar span { color: var(--text); }
-
-
-.distribution-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-}
-
-.distribution-card canvas {
-  width: 100% !important;
-  height: 300px !important;
-}
-
-.chart-note {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--muted);
-  margin-top: 10px;
-  line-height: 1.5;
-}
-
-/* ── Sensitivity mini charts ── */
-.sens-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.mini-chart {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-}
-
-.mini-chart canvas {
-  width: 100% !important;
-  height: 180px !important;
-}
-
-.mini-title {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-/* ── Footer ── */
-footer {
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 12px 32px;
-  font-size: 0.78rem;
-  color: var(--muted);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-footer a { color: var(--accent); text-decoration: none; }
-
-/* ── Loading spinner ── */
-.spinner {
-  display: none;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .6s linear infinite;
-  margin-left: 8px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.results-area { display: none; flex-direction: column; gap: 24px; }
-
-
-/* ── Responsive layout ── */
-@media (max-width: 1024px) {
-  header {
-    padding: 16px 20px;
-  }
-
-  .layout {
-    flex-direction: column;
-    overflow: visible;
-  }
-
-  .sidebar {
-    width: 100%;
-    min-width: 0;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
-
-  .sidebar-section {
-    margin-bottom: 0;
-  }
-
-  #xl-controls,
-  #sl-controls {
-    display: contents;
-  }
-
-  #sl-controls[style*="display:none"],
-  #xl-controls[style*="display:none"] {
-    display: none !important;
-  }
-
-  .main {
-    padding: 22px 20px;
-  }
-
-  .two-col,
-  .sens-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .distribution-card canvas {
-    height: 260px !important;
-  }
-}
-
-@media (max-width: 640px) {
-  body {
-    overflow-x: hidden;
-  }
-
-  header {
-    align-items: flex-start;
-    gap: 10px;
-    flex-direction: column;
-  }
-
-  .header-left h1 {
-    font-size: 1rem;
-  }
-
-  .header-badge {
-    font-size: 0.68rem;
-  }
-
-  .sidebar {
-    grid-template-columns: 1fr;
-    padding: 16px 14px;
-  }
-
-  .main {
-    padding: 18px 14px;
-    gap: 18px;
-  }
-
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .scenario-bar {
-    gap: 8px;
-    font-size: 0.68rem;
-  }
-
-  .mini-chart,
-  .distribution-card,
-  .chart-card {
-    padding: 14px;
-  }
-
-  .mini-chart canvas {
-    height: 220px !important;
-  }
-
-  .distribution-card canvas {
-    height: 240px !important;
-  }
-
-  footer {
-    padding: 12px 14px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-}
-
+:root{--bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;--accent:#58a6ff;--accent2:#f78166;--text:#e6edf3;--muted:#8b949e;--premium:#f0883e;--sidebar-w:290px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-left h1{font-size:1rem;font-weight:600;letter-spacing:-.02em}
+.header-left p{font-size:.72rem;color:var(--muted);font-family:'DM Mono',monospace}
+.header-badge{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--accent);border:1px solid var(--accent);padding:3px 9px;border-radius:20px}
+.hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:4px}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px}
+.layout{display:flex;flex:1;overflow:hidden;position:relative}
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);padding:16px 14px;overflow-y:auto;display:flex;flex-direction:column;transition:transform .3s ease;z-index:50}
+.sidebar-section{margin-bottom:18px}
+.sidebar-label{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.control-group{margin-bottom:10px}
+.control-group label{font-size:.76rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px}
+.control-group .val{font-family:'DM Mono',monospace;font-size:.76rem;color:var(--accent)}
+select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:.8rem;padding:6px 10px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer;border:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;transition:transform .1s}
+input[type=range]::-webkit-slider-thumb:active{transform:scale(1.3)}
+.tab-row{display:flex;gap:6px;margin-bottom:12px}
+.tab-btn{flex:1;padding:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);border-radius:6px;font-size:.75rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;text-align:center}
+.tab-btn.active{background:var(--accent);color:#0d1117;border-color:var(--accent);font-weight:600}
+.no-result-msg{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--accent2);background:rgba(247,129,102,.1);border:1px solid var(--accent2);border-radius:6px;padding:8px 10px;margin-top:6px;display:none}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40}
+.main{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;min-width:0}
+.placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);text-align:center;padding:60px 20px}
+.placeholder .big{font-size:2.5rem;opacity:.3}
+.placeholder p{font-size:.85rem;max-width:400px;line-height:1.6}
+.placeholder code{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:4px}
+.section-title{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px}
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;transition:border-color .2s}
+.metric:hover{border-color:var(--accent)}
+.metric.highlight{background:var(--surface2);border-color:var(--premium)}
+.mlabel{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
+.mvalue{font-family:'DM Mono',monospace;font-size:1rem;font-weight:500;color:var(--text)}
+.metric.highlight .mvalue{color:var(--premium)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.chart-card canvas{width:100%!important}
+.hist-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.hist-card canvas{width:100%!important;height:220px!important}
+.sens-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sens-grid .chart-card canvas{height:160px!important}
+.scenario-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;line-height:1.6}
+.scenario-bar span{color:var(--text)}
+.results-area{display:none;flex-direction:column;gap:20px}
+footer{background:var(--surface);border-top:1px solid var(--border);padding:10px 20px;font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+footer a{color:var(--accent);text-decoration:none}
+@media(max-width:900px){.two-col,.sens-grid{grid-template-columns:1fr}}
+@media(max-width:680px){.hamburger{display:flex}.header-badge{display:none}.sidebar{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);z-index:60;width:min(var(--sidebar-w),85vw)}.sidebar.open{transform:translateX(0)}.sidebar-overlay.open{display:block}.main{padding:14px}.metrics-grid{grid-template-columns:repeat(2,1fr)}.hist-card canvas{height:180px!important}}
+@media(max-width:380px){.metrics-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
 <header>
-  <div class="header-left">
-    <h1>Reinsurance Layer Pricing Engine</h1>
-    <p>Monte Carlo · Frequency-Severity · XL &amp; Stop-Loss</p>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="hamburger" id="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+    <div class="header-left">
+      <h1>Reinsurance Layer Pricing Engine</h1>
+      <p>Monte Carlo · XL &amp; Stop-Loss · AAL · AAD · Reinstatements</p>
+    </div>
   </div>
-  <div class="header-badge">Educational Tool</div>
+  <div class="header-badge" id="scenario-count">Loading...</div>
 </header>
-
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
 <div class="layout">
-
-<!-- ── SIDEBAR ── -->
-<div class="sidebar">
-
+<div class="sidebar" id="sidebar">
   <div class="sidebar-section">
     <div class="sidebar-label">Treaty Type</div>
     <div class="tab-row">
@@ -520,546 +82,268 @@ footer a { color: var(--accent); text-decoration: none; }
       <div class="tab-btn" id="tab-sl" onclick="setTreaty('sl')">Stop-Loss</div>
     </div>
   </div>
-
-  <!-- XL controls -->
   <div id="xl-controls">
     <div class="sidebar-section">
       <div class="sidebar-label">Treaty Structure</div>
-
       <div class="control-group">
         <label>Retention <span class="val" id="ret-val">€1.0M</span></label>
-        <input type="range" id="retention" min="0" max="4" value="2"
-               oninput="updateSlider('retention','ret-val', XL_RETENTIONS)">
+        <input type="range" id="retention" min="0" max="4" value="2" oninput="updateSlider('retention','ret-val',XL_RETENTIONS)">
       </div>
-
       <div class="control-group">
         <label>Limit <span class="val" id="lim-val">€5.0M</span></label>
-        <input type="range" id="limit" min="0" max="4" value="2"
-               oninput="updateSlider('limit','lim-val', XL_LIMITS)">
+        <input type="range" id="limit" min="0" max="4" value="2" oninput="updateSlider('limit','lim-val',XL_LIMITS)">
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Phase 4 — Advanced Features</div>
+      <div class="control-group">
+        <label>Aggregate Annual Limit <span class="val" id="aal-val">None</span></label>
+        <input type="range" id="aal" min="0" max="2" value="0" oninput="updateAAL()">
+      </div>
+      <div class="control-group">
+        <label>Annual Aggregate Deductible <span class="val" id="aad-val">None</span></label>
+        <input type="range" id="aad" min="0" max="2" value="0" oninput="updateAAD()">
       </div>
     </div>
   </div>
-
-  <!-- SL controls -->
   <div id="sl-controls" style="display:none">
     <div class="sidebar-section">
       <div class="sidebar-label">Treaty Structure</div>
-
       <div class="control-group">
         <label>Attachment <span class="val" id="att-val">€30M</span></label>
-        <input type="range" id="attachment" min="0" max="4" value="2"
-               oninput="updateSlider('attachment','att-val', SL_ATTACHMENTS)">
+        <input type="range" id="attachment" min="0" max="4" value="2" oninput="updateSlider('attachment','att-val',SL_ATTACHMENTS)">
       </div>
-
       <div class="control-group">
         <label>Cap <span class="val" id="cap-val">€20M</span></label>
-        <input type="range" id="cap" min="0" max="2" value="1"
-               oninput="updateSlider('cap','cap-val', SL_CAPS)">
+        <input type="range" id="cap" min="0" max="2" value="1" oninput="updateSlider('cap','cap-val',SL_CAPS)">
       </div>
     </div>
   </div>
-
   <div class="sidebar-section">
     <div class="sidebar-label">Frequency</div>
     <div class="control-group">
       <label>Mean claim count λ <span class="val" id="lam-val">120</span></label>
-      <input type="range" id="lambda" min="0" max="4" value="2"
-             oninput="updateSlider('lambda','lam-val', LAMBDAS)">
+      <input type="range" id="lambda" min="0" max="4" value="2" oninput="updateSlider('lambda','lam-val',LAMBDAS)">
     </div>
   </div>
-
   <div class="sidebar-section">
     <div class="sidebar-label">Severity</div>
     <div class="control-group">
       <label>Tail parameter σ <span class="val" id="sig-val">1.2</span></label>
-      <input type="range" id="sigma" min="0" max="4" value="2"
-             oninput="updateSlider('sigma','sig-val', SIGMAS)">
+      <input type="range" id="sigma" min="0" max="4" value="2" oninput="updateSlider('sigma','sig-val',SIGMAS)">
     </div>
   </div>
-
   <div class="sidebar-section">
     <div class="sidebar-label">Pricing</div>
     <div class="control-group">
-      <label>Cost of capital <span class="val" id="coc-val">10%</span></label>
-      <input type="range" id="coc" min="0" max="3" value="1"
-             oninput="updateSlider('coc','coc-val', COCS, true)">
+      <label>Cost of capital <span class="val" id="coc-val">5%</span></label>
+      <input type="range" id="coc" min="0" max="1" value="0" oninput="updateSlider('coc','coc-val',COCS,true)">
     </div>
   </div>
-
-  <div class="no-result-msg" id="no-result">
-    ⚠ No scenario found for this combination. Try adjusting the parameters.
-  </div>
-
+  <div class="no-result-msg" id="no-result">⚠ No scenario for this combination. Adjust parameters.</div>
 </div>
-
-<!-- ── MAIN ── -->
-<div class="main" id="main">
-
+<div class="main">
   <div class="placeholder" id="placeholder">
     <div class="big">📊</div>
-    <p>Adjust the parameters in the sidebar to explore how treaty structure,
-       frequency, severity, and cost of capital affect the technical premium.</p>
-    <p>All <code>3,900+</code> scenarios are pre-computed — results update instantly.</p>
+    <p>Move the sliders to explore how treaty structure, frequency, severity, cost of capital, AAL, and AAD affect the technical premium.</p>
+    <p>All scenarios are pre-computed — results update instantly. Phase 4 features: <code>AAL</code>, <code>AAD</code>, <code>Reinstatements</code>.</p>
   </div>
-
   <div class="results-area" id="results">
-
     <div class="scenario-bar" id="scenario-bar"></div>
-
     <div class="two-col">
-      <div>
-        <div class="section-title">Risk Measures</div>
-        <div class="metrics-grid" id="risk-metrics"></div>
-      </div>
-      <div>
-        <div class="section-title">Technical Pricing</div>
-        <div class="metrics-grid" id="price-metrics"></div>
-      </div>
+      <div><div class="section-title">Risk Measures</div><div class="metrics-grid" id="risk-metrics"></div></div>
+      <div><div class="section-title">Technical Pricing</div><div class="metrics-grid" id="price-metrics"></div></div>
     </div>
-
-
-    <div>
-      <div class="section-title">Simulation Distribution</div>
-      <div class="distribution-card">
-        <canvas id="chart-distribution"></canvas>
-        <div class="chart-note" id="distribution-note"></div>
-      </div>
+    <div class="hist-card">
+      <div class="section-title">Ceded Loss Distribution — Approximate PDF</div>
+      <canvas id="chart-hist"></canvas>
     </div>
-
     <div>
       <div class="section-title">Sensitivity Analysis</div>
       <div class="sens-grid">
-        <div class="mini-chart">
-          <div class="mini-title">Premium vs Retention / Attachment</div>
-          <canvas id="chart-retention"></canvas>
-          <div class="chart-note">Shows how the selected layer price changes as the entry point moves. Higher retentions or attachments usually reduce expected ceded loss and premium because fewer simulated losses reach the layer.</div>
-        </div>
-        <div class="mini-chart">
-          <div class="mini-title">Premium vs Severity Tail σ</div>
-          <canvas id="chart-sigma"></canvas>
-          <div class="chart-note">Isolates the effect of the severity tail. Larger σ creates heavier individual losses, increasing both expected ceded loss and tail capital requirements.</div>
-        </div>
-        <div class="mini-chart">
-          <div class="mini-title">Premium vs Claim Frequency λ</div>
-          <canvas id="chart-lambda"></canvas>
-          <div class="chart-note">Shows the effect of claim count intensity. Higher λ means more expected claims per year, increasing the chance that the treaty attaches and the premium rises.</div>
-        </div>
-        <div class="mini-chart">
-          <div class="mini-title">Premium vs Cost of Capital</div>
-          <canvas id="chart-coc"></canvas>
-          <div class="chart-note">Shows the loading effect from risk capital. Expected ceded loss stays fixed while the technical premium increases as the required return on tail capital rises.</div>
-        </div>
+        <div class="chart-card"><div class="section-title" id="sens-ret-title">Premium vs Retention</div><canvas id="chart-retention"></canvas></div>
+        <div class="chart-card"><div class="section-title">Premium vs Severity Tail σ</div><canvas id="chart-sigma"></canvas></div>
+        <div class="chart-card"><div class="section-title">Premium vs Claim Frequency λ</div><canvas id="chart-lambda"></canvas></div>
+        <div class="chart-card"><div class="section-title">Premium vs Cost of Capital</div><canvas id="chart-coc"></canvas></div>
       </div>
     </div>
-
   </div>
 </div>
-
 </div>
-
 <footer>
   <span>Reinsurance Layer Pricing Engine — Educational Tool</span>
-  <a href="https://github.com/RS-ins/Reinsurance-Layer-Pricing-Engine" target="_blank">
-    GitHub ↗
-  </a>
+  <a href="https://github.com/RS-ins/Reinsurance-Layer-Pricing-Engine" target="_blank">GitHub ↗</a>
 </footer>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-// ─────────────────────────────────────────────
-// Parameter grids — must match generate_scenarios.py
-// ─────────────────────────────────────────────
-const XL_RETENTIONS  = [500000, 750000, 1000000, 1500000, 2000000];
-const XL_LIMITS      = [2000000, 3000000, 5000000, 7000000, 10000000];
-const SL_ATTACHMENTS = [10000000, 20000000, 30000000, 40000000, 50000000];
-const SL_CAPS        = [10000000, 20000000, 30000000];
-const SIGMAS         = [0.8, 1.0, 1.2, 1.4, 1.6];
-const LAMBDAS        = [60, 90, 120, 150, 180];
-const COCS           = [0.05, 0.10, 0.15, 0.20];
+const XL_RETENTIONS=[500000,750000,1000000,1500000,2000000];
+const XL_LIMITS=[2000000,3000000,5000000,7000000,10000000];
+const XL_AAL_MULTS=[0,2,4];
+const XL_AADS=[0,200000,500000];
+const SL_ATTACHMENTS=[10000000,20000000,30000000,40000000,50000000];
+const SL_CAPS=[10000000,20000000,30000000];
+const SIGMAS=[0.8,1.0,1.2,1.4,1.6];
+const LAMBDAS=[60,90,120,150,180];
+const COCS=[0.05,0.15];
+let DATA=null,treatyType="xl",charts={};
 
-let DATA      = null;
-let treatyType = "xl";
-let charts    = {};
+function toggleSidebar(){document.getElementById("sidebar").classList.toggle("open");document.getElementById("overlay").classList.toggle("open")}
 
-// ─────────────────────────────────────────────
-// Load scenarios.json
-// ─────────────────────────────────────────────
-fetch("scenarios.json")
-  .then(r => r.json())
-  .then(d => {
-    DATA = d;
-    console.log(`Loaded ${d.xl.length} XL + ${d.sl.length} SL scenarios`);
-    updateDisplay();
-  })
-  .catch(() => {
-    document.getElementById("no-result").style.display = "block";
-    document.getElementById("no-result").textContent =
-      "⚠ Could not load scenarios.json. Run generate_scenarios.py first.";
-  });
+fetch("scenarios.json").then(r=>r.json()).then(d=>{
+  DATA=d;
+  document.getElementById("scenario-count").textContent=(d.xl.length+d.sl.length).toLocaleString()+" Scenarios";
+  updateDisplay();
+}).catch(()=>{
+  const el=document.getElementById("no-result");el.style.display="block";
+  el.textContent="⚠ Could not load scenarios.json.";
+  document.getElementById("scenario-count").textContent="Load Error";
+});
 
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-function fmt(n) {
-  if (n >= 1e6) return "€" + (n/1e6).toFixed(2) + "M";
-  if (n >= 1e3) return "€" + (n/1e3).toFixed(0) + "K";
-  return "€" + n.toFixed(0);
-}
+function fmt(n){if(n===0||n==null)return"—";if(n>=1e6)return"€"+(n/1e6).toFixed(2)+"M";if(n>=1e3)return"€"+(n/1e3).toFixed(0)+"K";return"€"+n.toFixed(0)}
+function fmtPct(n){return(n*100).toFixed(1)+"%"}
+function fmtRaw(n){return n.toFixed(3)}
 
-function fmtPct(n) { return (n * 100).toFixed(1) + "%"; }
-function fmtRaw(n) { return n.toFixed(3); }
-
-function updateSlider(id, valId, arr, isPct=false) {
-  const idx = parseInt(document.getElementById(id).value);
-  const v   = arr[idx];
-  const el  = document.getElementById(valId);
-  if (isPct)        el.textContent = fmtPct(v);
-  else if (v >= 1e6) el.textContent = "€" + (v/1e6).toFixed(1) + "M";
-  else if (v >= 1e3) el.textContent = "€" + (v/1e3).toFixed(0) + "K";
-  else               el.textContent = v;
+function updateSlider(id,valId,arr,isPct=false){
+  const idx=parseInt(document.getElementById(id).value),v=arr[idx],el=document.getElementById(valId);
+  if(isPct)el.textContent=fmtPct(v);
+  else if(v>=1e6)el.textContent="€"+(v/1e6).toFixed(1)+"M";
+  else if(v>=1e3)el.textContent="€"+(v/1e3).toFixed(0)+"K";
+  else el.textContent=v;
   updateDisplay();
 }
 
-function setTreaty(t) {
-  treatyType = t;
-  document.getElementById("tab-xl").classList.toggle("active", t==="xl");
-  document.getElementById("tab-sl").classList.toggle("active", t==="sl");
-  document.getElementById("xl-controls").style.display = t==="xl" ? "" : "none";
-  document.getElementById("sl-controls").style.display = t==="sl" ? "" : "none";
+function updateAAL(){
+  const idx=parseInt(document.getElementById("aal").value),mult=XL_AAL_MULTS[idx];
+  const lim=XL_LIMITS[parseInt(document.getElementById("limit").value)];
+  document.getElementById("aal-val").textContent=mult===0?"None":"€"+(mult*lim/1e6).toFixed(1)+"M ("+mult+"×)";
   updateDisplay();
 }
 
-// ─────────────────────────────────────────────
-// Lookup scenario
-// ─────────────────────────────────────────────
-function getParams() {
-  return {
-    retention:  XL_RETENTIONS[parseInt(document.getElementById("retention").value)],
-    limit:      XL_LIMITS[parseInt(document.getElementById("limit").value)],
-    attachment: SL_ATTACHMENTS[parseInt(document.getElementById("attachment").value)],
-    cap:        SL_CAPS[parseInt(document.getElementById("cap").value)],
-    sigma:      SIGMAS[parseInt(document.getElementById("sigma").value)],
-    lambda:     LAMBDAS[parseInt(document.getElementById("lambda").value)],
-    coc:        COCS[parseInt(document.getElementById("coc").value)],
+function updateAAD(){
+  const idx=parseInt(document.getElementById("aad").value),v=XL_AADS[idx];
+  document.getElementById("aad-val").textContent=v===0?"None":v>=1e6?"€"+(v/1e6).toFixed(1)+"M":"€"+(v/1e3).toFixed(0)+"K";
+  updateDisplay();
+}
+
+function setTreaty(t){
+  treatyType=t;
+  document.getElementById("tab-xl").classList.toggle("active",t==="xl");
+  document.getElementById("tab-sl").classList.toggle("active",t==="sl");
+  document.getElementById("xl-controls").style.display=t==="xl"?"":"none";
+  document.getElementById("sl-controls").style.display=t==="sl"?"":"none";
+  document.getElementById("sens-ret-title").textContent=t==="xl"?"Premium vs Retention":"Premium vs Attachment";
+  updateDisplay();
+}
+
+function getParams(){
+  return{
+    retention:XL_RETENTIONS[+document.getElementById("retention").value],
+    limit:XL_LIMITS[+document.getElementById("limit").value],
+    aal_mult:XL_AAL_MULTS[+document.getElementById("aal").value],
+    aad:XL_AADS[+document.getElementById("aad").value],
+    attachment:SL_ATTACHMENTS[+document.getElementById("attachment").value],
+    cap:SL_CAPS[+document.getElementById("cap").value],
+    sigma:SIGMAS[+document.getElementById("sigma").value],
+    lambda:LAMBDAS[+document.getElementById("lambda").value],
+    coc:COCS[+document.getElementById("coc").value],
   };
 }
 
-function findScenario(params) {
-  if (!DATA) return null;
-  const arr = treatyType === "xl" ? DATA.xl : DATA.sl;
-  return arr.find(s => {
-    if (treatyType === "xl") {
-      return s.retention === params.retention &&
-             s.limit     === params.limit &&
-             s.sigma     === params.sigma &&
-             s.lambda    === params.lambda &&
-             s.coc       === params.coc;
-    } else {
-      return s.attachment === params.attachment &&
-             s.cap        === params.cap &&
-             s.sigma      === params.sigma &&
-             s.lambda     === params.lambda &&
-             s.coc        === params.coc;
-    }
-  }) || null;
+function findScenario(p){
+  if(!DATA)return null;
+  if(treatyType==="xl")return DATA.xl.find(s=>s.retention===p.retention&&s.limit===p.limit&&s.aal_mult===p.aal_mult&&s.aad===p.aad&&s.sigma===p.sigma&&s.lambda===p.lambda&&s.coc===p.coc)||null;
+  return DATA.sl.find(s=>s.attachment===p.attachment&&s.cap===p.cap&&s.sigma===p.sigma&&s.lambda===p.lambda&&s.coc===p.coc)||null;
 }
 
-// ─────────────────────────────────────────────
-// Sensitivity data helpers
-// ─────────────────────────────────────────────
-function sensRetention(params) {
-  const arr = treatyType === "xl" ? DATA.xl : DATA.sl;
-  const xArr = treatyType === "xl" ? XL_RETENTIONS : SL_ATTACHMENTS;
-  return xArr.map(xv => {
-    const s = arr.find(s =>
-      treatyType === "xl"
-        ? s.retention===xv && s.limit===params.limit &&
-          s.sigma===params.sigma && s.lambda===params.lambda && s.coc===params.coc
-        : s.attachment===xv && s.cap===params.cap &&
-          s.sigma===params.sigma && s.lambda===params.lambda && s.coc===params.coc
-    );
-    return s ? { x: xv/1e6, premium: s.premium, ecl: s.ecl } : null;
-  }).filter(Boolean);
+function sensRetention(p){
+  const arr=treatyType==="xl"?DATA.xl:DATA.sl,xArr=treatyType==="xl"?XL_RETENTIONS:SL_ATTACHMENTS;
+  const vk=treatyType==="xl"?"retention":"attachment";
+  const fix=treatyType==="xl"?["limit","aal_mult","aad","sigma","lambda","coc"]:["cap","sigma","lambda","coc"];
+  return xArr.map(xv=>{const s=arr.find(s=>s[vk]===xv&&fix.every(k=>s[k]===p[k]));return s?{x:xv/1e6,premium:s.premium,ecl:s.ecl}:null}).filter(Boolean);
+}
+function sensSigma(p){
+  const arr=treatyType==="xl"?DATA.xl:DATA.sl;
+  const fix=treatyType==="xl"?["retention","limit","aal_mult","aad","lambda","coc"]:["attachment","cap","lambda","coc"];
+  return SIGMAS.map(sv=>{const s=arr.find(s=>s.sigma===sv&&fix.every(k=>s[k]===p[k]));return s?{x:sv,premium:s.premium,ecl:s.ecl}:null}).filter(Boolean);
+}
+function sensLambda(p){
+  const arr=treatyType==="xl"?DATA.xl:DATA.sl;
+  const fix=treatyType==="xl"?["retention","limit","aal_mult","aad","sigma","coc"]:["attachment","cap","sigma","coc"];
+  return LAMBDAS.map(lv=>{const s=arr.find(s=>s.lambda===lv&&fix.every(k=>s[k]===p[k]));return s?{x:lv,premium:s.premium,ecl:s.ecl}:null}).filter(Boolean);
+}
+function sensCoc(p){
+  const arr=treatyType==="xl"?DATA.xl:DATA.sl;
+  const fix=treatyType==="xl"?["retention","limit","aal_mult","aad","sigma","lambda"]:["attachment","cap","sigma","lambda"];
+  return COCS.map(cv=>{const s=arr.find(s=>s.coc===cv&&fix.every(k=>s[k]===p[k]));return s?{x:+(cv*100).toFixed(0),premium:s.premium,ecl:s.ecl}:null}).filter(Boolean);
 }
 
-function sensSigma(params) {
-  const arr = treatyType === "xl" ? DATA.xl : DATA.sl;
-  return SIGMAS.map(sv => {
-    const s = arr.find(s =>
-      treatyType === "xl"
-        ? s.retention===params.retention && s.limit===params.limit &&
-          s.sigma===sv && s.lambda===params.lambda && s.coc===params.coc
-        : s.attachment===params.attachment && s.cap===params.cap &&
-          s.sigma===sv && s.lambda===params.lambda && s.coc===params.coc
-    );
-    return s ? { x: sv, premium: s.premium, ecl: s.ecl } : null;
-  }).filter(Boolean);
+function buildHistData(s,lim){
+  const ecl=s.ecl,std=s.std;
+  if(ecl<=0||std<=0)return{labels:[],data:[],vlines:{}};
+  const cv=std/ecl,sg2=Math.log(1+cv*cv),mu=Math.log(ecl)-0.5*sg2,sLN=Math.sqrt(sg2);
+  const maxX=Math.min(lim*1.1,ecl+6*std),N=80,step=maxX/N,labels=[],data=[],pA=s.prob_attachment;
+  function pdf(x){if(x<=0)return 0;const z=(Math.log(x)-mu)/sLN;return Math.exp(-0.5*z*z)/(x*sLN*Math.sqrt(2*Math.PI))}
+  for(let i=1;i<=N;i++){const x=i*step;labels.push((x/1e6).toFixed(2)+"M");data.push(+(pdf(x)*pA).toFixed(8))}
+  return{labels,data,vlines:{var95:s.var_95,var99:s.var_99,tvar99:s.tvar_99,limit:lim}};
 }
 
-function sensLambda(params) {
-  const arr = treatyType === "xl" ? DATA.xl : DATA.sl;
-  return LAMBDAS.map(lv => {
-    const s = arr.find(s =>
-      treatyType === "xl"
-        ? s.retention===params.retention && s.limit===params.limit &&
-          s.sigma===params.sigma && s.lambda===lv && s.coc===params.coc
-        : s.attachment===params.attachment && s.cap===params.cap &&
-          s.sigma===params.sigma && s.lambda===lv && s.coc===params.coc
-    );
-    return s ? { x: lv, premium: s.premium, ecl: s.ecl } : null;
-  }).filter(Boolean);
+const CO={responsive:true,maintainAspectRatio:false,animation:{duration:200},
+  plugins:{legend:{labels:{color:"#8b949e",font:{family:"DM Mono",size:9},boxWidth:10}},
+    tooltip:{backgroundColor:"#1c2128",borderColor:"#30363d",borderWidth:1,titleColor:"#e6edf3",bodyColor:"#8b949e",titleFont:{family:"DM Mono",size:10},bodyFont:{family:"DM Mono",size:9}}},
+  scales:{x:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:6},grid:{color:"#21262d"}},
+    y:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:5,callback:v=>v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":v},grid:{color:"#21262d"}}}};
+
+function makeLine(id,data,xLabel){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id).getContext("2d"),opts=JSON.parse(JSON.stringify(CO));
+  opts.scales.x.title={display:true,text:xLabel,color:"#8b949e",font:{family:"DM Mono",size:8}};
+  charts[id]=new Chart(ctx,{type:"line",data:{labels:data.map(d=>d.x),datasets:[
+    {label:"Technical Premium",data:data.map(d=>d.premium),borderColor:"#f0883e",backgroundColor:"rgba(240,136,62,0.08)",borderWidth:2,pointRadius:3,pointBackgroundColor:"#f0883e",tension:0.3,fill:true},
+    {label:"ECL",data:data.map(d=>d.ecl),borderColor:"#58a6ff",backgroundColor:"rgba(88,166,255,0.04)",borderWidth:2,borderDash:[4,3],pointRadius:2,pointBackgroundColor:"#58a6ff",tension:0.3}
+  ]},options:opts});
 }
 
-function sensCoc(params) {
-  const arr = treatyType === "xl" ? DATA.xl : DATA.sl;
-  return COCS.map(cv => {
-    const s = arr.find(s =>
-      treatyType === "xl"
-        ? s.retention===params.retention && s.limit===params.limit &&
-          s.sigma===params.sigma && s.lambda===params.lambda && s.coc===cv
-        : s.attachment===params.attachment && s.cap===params.cap &&
-          s.sigma===params.sigma && s.lambda===params.lambda && s.coc===cv
-    );
-    return s ? { x: cv*100, premium: s.premium, ecl: s.ecl } : null;
-  }).filter(Boolean);
+function makeHist(id,hd){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id).getContext("2d"),vl=hd.vlines;
+  const vp=[{id:"vlines",afterDraw(chart){
+    const{ctx:c,chartArea:ca,scales}=chart;
+    [{val:vl.var95,color:"#E8A838",label:"VaR 95%"},{val:vl.var99,color:"#D94F3D",label:"VaR 99%"},{val:vl.tvar99,color:"#6A0DAD",label:"TVaR 99%"},{val:vl.limit,color:"#3fb950",label:"Limit"}]
+    .forEach(({val,color,label})=>{
+      const x=scales.x.getPixelForValue((val/1e6).toFixed(2)+"M");
+      if(!x||x<ca.left||x>ca.right)return;
+      c.save();c.setLineDash([4,3]);c.strokeStyle=color;c.lineWidth=1.5;
+      c.beginPath();c.moveTo(x,ca.top);c.lineTo(x,ca.bottom);c.stroke();
+      c.setLineDash([]);c.fillStyle=color;c.font="9px DM Mono";c.fillText(label,x+3,ca.top+10);c.restore();
+    });
+  }}];
+  charts[id]=new Chart(ctx,{type:"line",data:{labels:hd.labels,datasets:[{label:"Approx. PDF",data:hd.data,borderColor:"#58a6ff",backgroundColor:"rgba(88,166,255,0.15)",borderWidth:2,pointRadius:0,tension:0.4,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},
+      plugins:{legend:{labels:{color:"#8b949e",font:{family:"DM Mono",size:9},boxWidth:10}},tooltip:{backgroundColor:"#1c2128",borderColor:"#30363d",borderWidth:1,titleColor:"#e6edf3",bodyColor:"#8b949e",titleFont:{family:"DM Mono",size:10},bodyFont:{family:"DM Mono",size:9}}},
+      scales:{x:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:8},grid:{color:"#21262d"},title:{display:true,text:"Annual Ceded Loss",color:"#8b949e",font:{family:"DM Mono",size:8}}},
+        y:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:4},grid:{color:"#21262d"},title:{display:true,text:"Density (scaled)",color:"#8b949e",font:{family:"DM Mono",size:8}}}}},plugins:vp});
 }
 
-// ─────────────────────────────────────────────
-// Chart.js helpers
-// ─────────────────────────────────────────────
-const CHART_DEFAULTS = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      labels: { color: "#8b949e", font: { family: "DM Mono", size: 10 }, boxWidth: 12 }
-    },
-    tooltip: {
-      backgroundColor: "#1c2128",
-      borderColor: "#30363d",
-      borderWidth: 1,
-      titleColor: "#e6edf3",
-      bodyColor: "#8b949e",
-      titleFont: { family: "DM Mono", size: 11 },
-      bodyFont: { family: "DM Mono", size: 10 },
-    }
-  },
-  scales: {
-    x: {
-      ticks: { color: "#8b949e", font: { family: "DM Mono", size: 9 } },
-      grid:  { color: "#21262d" },
-    },
-    y: {
-      ticks: {
-        color: "#8b949e",
-        font: { family: "DM Mono", size: 9 },
-        callback: v => v >= 1e6 ? (v/1e6).toFixed(1)+"M" : v >= 1e3 ? (v/1e3).toFixed(0)+"K" : v
-      },
-      grid: { color: "#21262d" },
-    }
-  }
-};
-
-
-function makeDistributionChart(scenario) {
-  const id = "chart-distribution";
-  if (charts[id]) charts[id].destroy();
-
-  const dist = scenario.distribution;
-  const note = document.getElementById("distribution-note");
-
-  if (!dist || !dist.bin_edges || !dist.counts) {
-    note.textContent = "Distribution data is missing. Regenerate scenarios.json with the updated app/generate_scenarios.py.";
-    return;
-  }
-
-  const labels = dist.counts.map((_, i) => {
-    const left = dist.bin_edges[i] || 0;
-    const right = dist.bin_edges[i + 1] || left;
-    return `${(left / 1e6).toFixed(1)}–${(right / 1e6).toFixed(1)}M`;
-  });
-
-  const ctx = document.getElementById(id).getContext("2d");
-  charts[id] = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [{
-        label: "Simulation count",
-        data: dist.counts,
-        backgroundColor: "rgba(88,166,255,0.55)",
-        borderColor: "#58a6ff",
-        borderWidth: 1,
-      }]
-    },
-    options: {
-      ...CHART_DEFAULTS,
-      scales: {
-        x: {
-          ticks: {
-            color: "#8b949e",
-            font: { family: "DM Mono", size: 9 },
-            maxRotation: 0,
-            autoSkip: true,
-            maxTicksLimit: window.innerWidth < 640 ? 5 : 10,
-          },
-          grid: { display: false },
-          title: {
-            display: true,
-            text: "Ceded loss bin (€ millions)",
-            color: "#8b949e",
-            font: { family: "DM Mono", size: 9 }
-          }
-        },
-        y: {
-          ticks: { color: "#8b949e", font: { family: "DM Mono", size: 9 } },
-          grid: { color: "#21262d" },
-          title: {
-            display: true,
-            text: "Frequency",
-            color: "#8b949e",
-            font: { family: "DM Mono", size: 9 }
-          }
-        }
-      }
-    }
-  });
-
-  note.textContent = `Shows the simulated ceded-loss distribution for the selected treaty and assumptions. Taller bars mean more simulation years landed in that ceded-loss range. Values above the 99.5th percentile are clipped into the right tail at €${(dist.clipped_at / 1e6).toFixed(2)}M.`;
-}
-
-function makeChart(id, data, xLabel) {
-  if (charts[id]) charts[id].destroy();
-  const ctx = document.getElementById(id).getContext("2d");
-  charts[id] = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: data.map(d => d.x),
-      datasets: [
-        {
-          label: "Technical Premium",
-          data: data.map(d => d.premium),
-          borderColor: "#f0883e",
-          backgroundColor: "rgba(240,136,62,0.1)",
-          borderWidth: 2,
-          pointRadius: 4,
-          pointBackgroundColor: "#f0883e",
-          tension: 0.3,
-          fill: true,
-        },
-        {
-          label: "ECL",
-          data: data.map(d => d.ecl),
-          borderColor: "#58a6ff",
-          backgroundColor: "rgba(88,166,255,0.05)",
-          borderWidth: 2,
-          borderDash: [4, 3],
-          pointRadius: 3,
-          pointBackgroundColor: "#58a6ff",
-          tension: 0.3,
-        }
-      ]
-    },
-    options: {
-      ...CHART_DEFAULTS,
-      scales: {
-        ...CHART_DEFAULTS.scales,
-        x: { ...CHART_DEFAULTS.scales.x, title: {
-          display: true,
-          text: xLabel,
-          color: "#8b949e",
-          font: { family: "DM Mono", size: 9 }
-        }}
-      }
-    }
-  });
-}
-
-// ─────────────────────────────────────────────
-// Main update
-// ─────────────────────────────────────────────
-function updateDisplay() {
-  if (!DATA) return;
-
-  const params = getParams();
-  const s      = findScenario(params);
-  const noRes  = document.getElementById("no-result");
-  const ph     = document.getElementById("placeholder");
-  const res    = document.getElementById("results");
-
-  if (!s) {
-    noRes.style.display = "block";
-    ph.style.display    = "flex";
-    res.style.display   = "none";
-    return;
-  }
-
-  noRes.style.display = "none";
-  ph.style.display    = "none";
-  res.style.display   = "flex";
-
-  // Scenario bar
-  const bar = document.getElementById("scenario-bar");
-  if (treatyType === "xl") {
-    bar.innerHTML = `
-      <span>Treaty:</span> ${fmt(params.limit)} xs ${fmt(params.retention)} XL &nbsp;|&nbsp;
-      <span>λ:</span> ${params.lambda} &nbsp;|&nbsp;
-      <span>σ:</span> ${params.sigma} &nbsp;|&nbsp;
-      <span>CoC:</span> ${fmtPct(params.coc)} &nbsp;|&nbsp;
-      <span>Simulations:</span> 20,000
-    `;
-  } else {
-    bar.innerHTML = `
-      <span>Treaty:</span> ${fmt(params.cap)} xs ${fmt(params.attachment)} Stop-Loss &nbsp;|&nbsp;
-      <span>λ:</span> ${params.lambda} &nbsp;|&nbsp;
-      <span>σ:</span> ${params.sigma} &nbsp;|&nbsp;
-      <span>CoC:</span> ${fmtPct(params.coc)} &nbsp;|&nbsp;
-      <span>Simulations:</span> 20,000
-    `;
-  }
-
-  // Risk metrics
-  document.getElementById("risk-metrics").innerHTML = [
-    ["ECL",               fmt(s.ecl)],
-    ["Std Deviation",     fmt(s.std)],
-    ["VaR 95%",           fmt(s.var_95)],
-    ["VaR 99%",           fmt(s.var_99)],
-    ["VaR 99.5%",         fmt(s.var_995)],
-    ["TVaR 99%",          fmt(s.tvar_99)],
-    ["Prob Attachment",   fmtPct(s.prob_attachment)],
-    ["Prob Exhaustion",   fmtPct(s.prob_exhaustion)],
-    ["CV",                fmtRaw(s.cv)],
-    ["Skewness",          fmtRaw(s.skewness)],
-  ].map(([l,v]) =>
-    `<div class="metric"><div class="mlabel">${l}</div><div class="mvalue">${v}</div></div>`
-  ).join("");
-
-  // Pricing metrics
-  document.getElementById("price-metrics").innerHTML = [
-    ["Expected Ceded Loss", fmt(s.ecl),             false],
-    ["Expense Loading",     fmt(s.expense_loading), false],
-    ["Profit Loading",      fmt(s.profit_loading),  false],
-    ["Capital Load",        fmt(s.capital_load),    false],
-    ["Technical Premium",   fmt(s.premium),         true],
-    ["Rate on Line",        fmtPct(s.rol),          false],
-  ].map(([l,v,h]) =>
-    `<div class="metric ${h?"highlight":""}">
-       <div class="mlabel">${l}</div>
-       <div class="mvalue">${v}</div>
-     </div>`
-  ).join("");
-
-  // Simulation distribution chart
-  makeDistributionChart(s);
-
-  // Sensitivity charts
-  const retLabel = treatyType === "xl" ? "Retention (M€)" : "Attachment (M€)";
-  makeChart("chart-retention", sensRetention(params), retLabel);
-  makeChart("chart-sigma",     sensSigma(params),     "Sigma σ");
-  makeChart("chart-lambda",    sensLambda(params),    "Lambda λ");
-  makeChart("chart-coc",       sensCoc(params),       "Cost of Capital (%)");
+function updateDisplay(){
+  if(!DATA)return;
+  const p=getParams(),s=findScenario(p);
+  const noRes=document.getElementById("no-result"),ph=document.getElementById("placeholder"),res=document.getElementById("results");
+  if(!s){noRes.style.display="block";ph.style.display="flex";res.style.display="none";return}
+  noRes.style.display="none";ph.style.display="none";res.style.display="flex";
+  const lim=treatyType==="xl"?p.limit:p.cap;
+  const aalL=p.aal_mult===0?"No AAL":p.aal_mult+"× limit",aadL=p.aad===0?"No AAD":fmt(p.aad);
+  document.getElementById("scenario-bar").innerHTML=treatyType==="xl"
+    ?`<span>Treaty:</span>${fmt(p.limit)} xs ${fmt(p.retention)} XL &nbsp;|&nbsp;<span>AAL:</span>${aalL} &nbsp;|&nbsp;<span>AAD:</span>${aadL} &nbsp;|&nbsp;<span>λ:</span>${p.lambda} &nbsp;|&nbsp;<span>σ:</span>${p.sigma} &nbsp;|&nbsp;<span>CoC:</span>${fmtPct(p.coc)}`
+    :`<span>Treaty:</span>${fmt(p.cap)} xs ${fmt(p.attachment)} SL &nbsp;|&nbsp;<span>λ:</span>${p.lambda} &nbsp;|&nbsp;<span>σ:</span>${p.sigma} &nbsp;|&nbsp;<span>CoC:</span>${fmtPct(p.coc)}`;
+  document.getElementById("risk-metrics").innerHTML=[["ECL",fmt(s.ecl)],["Std Deviation",fmt(s.std)],["VaR 95%",fmt(s.var_95)],["VaR 99%",fmt(s.var_99)],["VaR 99.5%",fmt(s.var_995)],["TVaR 99%",fmt(s.tvar_99)],["Prob Attachment",fmtPct(s.prob_attachment)],["Prob Exhaustion",fmtPct(s.prob_exhaustion)],["CV",fmtRaw(s.cv)],["Skewness",fmtRaw(s.skewness)]].map(([l,v])=>`<div class="metric"><div class="mlabel">${l}</div><div class="mvalue">${v}</div></div>`).join("");
+  const hr=s.exp_reinst_premium>0;
+  document.getElementById("price-metrics").innerHTML=[["Gross ECL",fmt(s.ecl),false],...(hr?[["Exp Reinst Prem",fmt(s.exp_reinst_premium),false],["Net ECL",fmt(s.net_ecl),false]]:[]),["Expense Loading",fmt(s.expense_loading),false],["Profit Loading",fmt(s.profit_loading),false],["Capital Load",fmt(s.capital_load),false],["Technical Premium",fmt(s.premium),true],["Rate on Line",fmtPct(s.rol),false]].map(([l,v,h])=>`<div class="metric ${h?"highlight":""}"><div class="mlabel">${l}</div><div class="mvalue">${v}</div></div>`).join("");
+  makeHist("chart-hist",buildHistData(s,lim));
+  makeLine("chart-retention",sensRetention(p),treatyType==="xl"?"Retention (M€)":"Attachment (M€)");
+  makeLine("chart-sigma",sensSigma(p),"Sigma σ");
+  makeLine("chart-lambda",sensLambda(p),"Lambda λ");
+  makeLine("chart-coc",sensCoc(p),"CoC (%)");
 }
 </script>
 </body>
 </html>
-
