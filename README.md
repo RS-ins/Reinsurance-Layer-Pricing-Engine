@@ -8,9 +8,9 @@
 
 ---
 
-## Live Dashboard
+## Live Dashboard (v0.2.0)
 
-An interactive dashboard with 3,900+ pre-computed scenarios is available online — no installation required:
+An interactive dashboard with 11250 pre-computed scenarios is available online — no installation required:
 
 **[→ Open Dashboard](https://rs-ins.github.io/Reinsurance-Layer-Pricing-Engine/)**
 
@@ -41,7 +41,7 @@ The project is intended for educational and research purposes. It provides a tra
 - **Technical premium** with explicit expense, profit, and capital loads via a cost-of-capital approach
 - **Net ECL pricing** — technical premium adjusted for expected reinstatement premium income
 - **Rate on Line (ROL)** calculation
-- **Interactive dashboard** — 3,900+ pre-computed scenarios, deployable as a static HTML file with no server required
+- **Interactive dashboard** — 11250 pre-computed scenarios, available online or deployable as a static HTML file with no server required
 - **Jupyter notebooks** — step-by-step walkthroughs of XL pricing, Stop-Loss pricing, and sensitivity analysis
 - **Reproducible results** via configurable random seed
 - **79% test coverage** across 49 unit tests
@@ -256,15 +256,40 @@ It covers pre-computed scenarios across:
 | Annual Aggregate Deductible (AAD) | None, €200K, €500K |
 | Severity tail σ | 5 levels (0.8 → 1.6) |
 | Mean claim count λ | 5 levels (60 → 180) |
-| Cost of capital | 4 levels (5% → 20%) |
+| Cost of capital | 2 levels (5% → 15%) |
 
 Each XL scenario includes reinstatement premium data (1 free + 1 paid at 100% pro rata as to time).
 
 To regenerate scenarios locally:
 
+---
+
+## Running the Dashboard Locally
+
+The dashboard is a static HTML file that reads `scenarios.json` from the same folder. Because browsers block local file access for security reasons, you need a simple local server to run it — you cannot just double-click `dashboard.html`.
+
+**Step 1 — Generate scenarios** (only needed once, or when parameters change):
+
 ```bash
-python app/generate_scenarios.py   # ~30 minutes
+python app/generate_scenarios.py
 ```
+
+**Step 2 — Start a local server** from the repo root:
+
+```bash
+cd app
+python -m http.server 8080
+```
+
+**Step 3 — Open in browser:**
+
+```
+http://127.0.0.1:8080/dashboard.html
+```
+
+That's it. The server runs until you press `Ctrl+C` in the terminal.
+
+> **Note:** If you change any parameters in `generate_scenarios.py` (retentions, limits, sigmas, etc.) you must regenerate `scenarios.json` and update the matching arrays at the top of `dashboard.html` to keep them in sync. The parameter grids in the JavaScript must exactly match the values used during generation.
 
 ---
 
