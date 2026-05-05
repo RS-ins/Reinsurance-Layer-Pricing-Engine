@@ -158,7 +158,24 @@ pricer_sl = TechnicalPricer(
 print(pricer_sl.price(treaty_limit=treaty_sl.cap).summary())
 
 # ─────────────────────────────────────────────
-# 6. Plots
+# 6. Bootstrapped confidence intervals
+# ─────────────────────────────────────────────
+print("\n" + "=" * 55)
+print("EXAMPLE 6 — Bootstrapped Confidence Intervals")
+print("=" * 55)
+
+from reinsure_pricing.bootstrap import bootstrap_risk_measures
+
+boot = bootstrap_risk_measures(
+    results,
+    treaty_limit=treaty.limit,
+    n_bootstrap=1_000,
+    confidence_level=0.95,
+)
+print(boot.summary())
+
+# ─────────────────────────────────────────────
+# 7. Plots
 # ─────────────────────────────────────────────
 print("\n" + "=" * 55)
 print("Generating plots...")

@@ -106,6 +106,7 @@ reinsurance-layer-pricing-engine/
 │       ├── simulation.py                   # ✅ MonteCarloEngine, SimulationResults
 │       ├── pricing.py                      # ✅ TechnicalPricer, PricingResult
 │       ├── risk_measures.py                # ✅ compute_risk_measures, RiskMeasures
+│       ├── bootstrap.py
 │       └── plots.py                        # ✅ plot_ceded_loss_distribution, plot_sensitivity
 ├── notebooks/
 │   ├── 01_xol_pricing.ipynb               # ✅ Full XL pricing walkthrough
@@ -122,9 +123,6 @@ reinsurance-layer-pricing-engine/
 │   ├── test_simulation.py                 # includes AAL, AAD, reinstatement tests
 │   ├── test_pricing.py                    # includes net ECL pricing tests
 │   └── test_risk_measures.py
-├── examples/
-│   ├── negative_binomial_comparison.py    # 🔜 Poisson vs NB frequency
-│   └── pareto_severity.py                 # 🔜 Heavy-tailed severity example
 └── docs/
     └── methodology.md                     # ✅ Mathematical foundations
 ```

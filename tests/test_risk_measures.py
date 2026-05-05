@@ -4,6 +4,7 @@ from reinsure_pricing.severity import LognormalSeverity
 from reinsure_pricing.treaties import ExcessOfLoss
 from reinsure_pricing.simulation import MonteCarloEngine
 from reinsure_pricing.risk_measures import compute_risk_measures
+from reinsure_pricing.bootstrap import bootstrap_risk_measures, BootstrappedRiskMeasures
 
 
 def get_results():
@@ -50,3 +51,31 @@ def test_cv_positive():
     results, treaty = get_results()
     rm = compute_risk_measures(results, treaty.limit)
     assert rm.coefficient_of_variation > 0
+
+def test_bootstrap_returns_correct_type():
+    results, treaty = get_results()
+    boot = bootstrap_risk_measures(results, treaty_limit=treaty.limit,
+                                   n_bootstrap=100)
+    assert isinstance(boot, BootstrappedRiskMeasures)
+
+def test_bootstrap_ci_contains_point_estimate():
+    results, treaty = get_results()
+    boot = bootstrap_risk_measures(results, treaty_limit=treaty.limit,
+                                   n_bootstrap=200)
+    for bi in [boot.ecl, boot.var_99, boot.tvar_99]:
+        assert bi.ci_lower <= bi.point_estimate <= bi.ci_upper
+
+def test_bootstrap_ci_ordering():
+    results, treaty = get_results()
+    boot = bootstrap_risk_measures(results, treaty_limit=treaty.limit,
+                                   n_bootstrap=200)
+    for bi in [boot.ecl, boot.var_95, boot.var_99, boot.var_995,
+               boot.tvar_95, boot.tvar_99, boot.tvar_995,
+               boot.prob_attachment, boot.prob_exhaustion]:
+        assert bi.ci_lower <= bi.ci_upper
+
+def test_bootstrap_var_ordering():
+    results, treaty = get_results()
+    boot = bootstrap_risk_measures(results, treaty_limit=treaty.limit,
+                                   n_bootstrap=200)
+    assert boot.var_95.point_estimate <= boot.var_99.point_estimate <= boot.var_995.point_estimate
