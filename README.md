@@ -119,9 +119,9 @@ reinsurance-layer-pricing-engine/
 ├── tests/
 │   ├── test_frequency.py
 │   ├── test_severity.py
-│   ├── test_treaties.py                   # includes AAL, AAD, reinstatement tests
-│   ├── test_simulation.py                 # includes AAL, AAD, reinstatement tests
-│   ├── test_pricing.py                    # includes net ECL pricing tests
+│   ├── test_treaties.py                   
+│   ├── test_simulation.py                 
+│   ├── test_pricing.py                    
 │   └── test_risk_measures.py
 └── docs/
     └── methodology.md                     # ✅ Mathematical foundations
