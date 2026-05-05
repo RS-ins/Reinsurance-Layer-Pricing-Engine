@@ -277,14 +277,40 @@ function sensCoc(p){
   return COCS.map(cv=>{const s=arr.find(s=>s.coc===cv&&fix.every(k=>s[k]===p[k]));return s?{x:+(cv*100).toFixed(0),premium:s.premium,ecl:s.ecl}:null}).filter(Boolean);
 }
 
-function buildHistData(s,lim){
-  const ecl=s.ecl,std=s.std;
-  if(ecl<=0||std<=0)return{labels:[],data:[],vlines:{}};
-  const cv=std/ecl,sg2=Math.log(1+cv*cv),mu=Math.log(ecl)-0.5*sg2,sLN=Math.sqrt(sg2);
-  const maxX=Math.min(lim*1.1,ecl+6*std),N=80,step=maxX/N,labels=[],data=[],pA=s.prob_attachment;
-  function pdf(x){if(x<=0)return 0;const z=(Math.log(x)-mu)/sLN;return Math.exp(-0.5*z*z)/(x*sLN*Math.sqrt(2*Math.PI))}
-  for(let i=1;i<=N;i++){const x=i*step;labels.push((x/1e6).toFixed(2)+"M");data.push(+(pdf(x)*pA).toFixed(8))}
-  return{labels,data,vlines:{var95:s.var_95,var99:s.var_99,tvar99:s.tvar_99,limit:lim}};
+function buildHistData(s, lim) {
+  const ecl = s.ecl, std = s.std;
+  if (ecl <= 0 || std <= 0) return { labels: [], data: [], vlines: {} };
+
+  const cv = std / ecl;
+  const sg2 = Math.log(1 + cv * cv);
+  const mu  = Math.log(ecl) - 0.5 * sg2;
+  const sLN = Math.sqrt(sg2);
+
+  const maxX = Math.min(lim * 1.1, ecl + 6 * std);
+  const N    = 60;
+  const step = maxX / N;
+  const labels = [], data = [];
+
+  // estimated number of non-zero years out of 20,000 simulations
+  const nonZeroYears = Math.round(s.prob_attachment * 20000);
+
+  function pdf(x) {
+    if (x <= 0) return 0;
+    const z = (Math.log(x) - mu) / sLN;
+    return Math.exp(-0.5 * z * z) / (x * sLN * Math.sqrt(2 * Math.PI));
+  }
+
+  for (let i = 1; i <= N; i++) {
+    const x = i * step;
+    labels.push((x / 1e6).toFixed(2) + "M");
+    // convert density to approximate count: pdf × bin_width × n_years
+    data.push(Math.round(pdf(x) * step * nonZeroYears));
+  }
+
+  return {
+    labels, data,
+    vlines: { var95: s.var_95, var99: s.var_99, tvar99: s.tvar_99, limit: lim }
+  };
 }
 
 const CO={responsive:true,maintainAspectRatio:false,animation:{duration:200},
@@ -321,7 +347,7 @@ function makeHist(id,hd){
     options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},
       plugins:{legend:{labels:{color:"#8b949e",font:{family:"DM Mono",size:9},boxWidth:10}},tooltip:{backgroundColor:"#1c2128",borderColor:"#30363d",borderWidth:1,titleColor:"#e6edf3",bodyColor:"#8b949e",titleFont:{family:"DM Mono",size:10},bodyFont:{family:"DM Mono",size:9}}},
       scales:{x:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:8},grid:{color:"#21262d"},title:{display:true,text:"Annual Ceded Loss",color:"#8b949e",font:{family:"DM Mono",size:8}}},
-        y:{ticks:{color:"#8b949e",font:{family:"DM Mono",size:8},maxTicksLimit:4},grid:{color:"#21262d"},title:{display:true,text:"Density (scaled)",color:"#8b949e",font:{family:"DM Mono",size:8}}}}},plugins:vp});
+        y:{ticks: { color:"#8b949e", font:{family:"DM Mono",size:8}, maxTicksLimit:5 },grid:  { color:"#21262d" },title: { display:true, text:"Years (out of 20,000)", color:"#8b949e",font:{family:"DM Mono",size:8}}}}},plugins:vp});
 }
 
 function updateDisplay(){
