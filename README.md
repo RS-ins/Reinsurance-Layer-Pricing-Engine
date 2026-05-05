@@ -96,18 +96,18 @@ reinsurance-layer-pricing-engine/
 ├── README.md
 ├── SECURITY.md
 ├── pyproject.toml
-├── run.py                                  # Quick start script (5 examples)
+├── run.py                                 # Quick start script (5 examples)
 ├── src/
 │   └── reinsure_pricing/
 │       ├── __init__.py
-│       ├── frequency.py                    # ✅ Poisson, Negative Binomial
-│       ├── severity.py                     # ✅ Lognormal, Gamma, Pareto
-│       ├── treaties.py                     # ✅ ExcessOfLoss (AAL, AAD), StopLoss, ReinstatementProvision
-│       ├── simulation.py                   # ✅ MonteCarloEngine, SimulationResults
-│       ├── pricing.py                      # ✅ TechnicalPricer, PricingResult
-│       ├── risk_measures.py                # ✅ compute_risk_measures, RiskMeasures
-│       ├── bootstrap.py
-│       └── plots.py                        # ✅ plot_ceded_loss_distribution, plot_sensitivity
+│       ├── frequency.py                   # ✅ Poisson, Negative Binomial
+│       ├── severity.py                    # ✅ Lognormal, Gamma, Pareto
+│       ├── treaties.py                    # ✅ ExcessOfLoss (AAL, AAD), StopLoss, ReinstatementProvision
+│       ├── simulation.py                  # ✅ MonteCarloEngine, SimulationResults
+│       ├── pricing.py                     # ✅ TechnicalPricer, PricingResult
+│       ├── risk_measures.py               # ✅ compute_risk_measures, RiskMeasures
+│       ├── bootstrap.py                   # ✅ BootstrapperInterval, BootstrappedRiskMeasures
+│       └── plots.py                       # ✅ plot_ceded_loss_distribution, plot_sensitivity
 ├── notebooks/
 │   ├── 01_xol_pricing.ipynb               # ✅ Full XL pricing walkthrough
 │   ├── 02_stop_loss_pricing.ipynb         # ✅ Stop-Loss pricing walkthrough
@@ -152,6 +152,7 @@ from reinsure_pricing.treaties import ExcessOfLoss, ReinstatementProvision
 from reinsure_pricing.simulation import MonteCarloEngine
 from reinsure_pricing.risk_measures import compute_risk_measures
 from reinsure_pricing.pricing import TechnicalPricer
+from reinsure_pricing.bootstrap import bootstrap_risk_measures
 
 # Define distributions and treaty
 frequency = PoissonFrequency(lambda_=120)
@@ -159,8 +160,8 @@ severity  = LognormalSeverity(mu=10.5, sigma=1.2)
 treaty    = ExcessOfLoss(
     retention=1_000_000,
     limit=5_000_000,
-    aggregate_limit=15_000_000,      # AAL — optional
-    aggregate_deductible=500_000,    # AAD — optional
+    aggregate_limit=15_000_000,
+    aggregate_deductible=500_000,
 )
 
 # Reinstatement provision — 1 free + 1 paid at 100% pro rata
@@ -185,44 +186,85 @@ pricer = TechnicalPricer(
     expected_reinstatement_premium=results.expected_reinstatement_premium,
 )
 print(pricer.price(treaty_limit=treaty.limit).summary())
+
+# Bootstrapped confidence intervals — how stable are our estimates?
+boot = bootstrap_risk_measures(
+    results,
+    treaty_limit=treaty.limit,
+    n_bootstrap=1_000,
+    confidence_level=0.95,
+)
+print(boot.summary())
 ```
 
-For five complete examples including basic XL, AAL, AAD, reinstatements, and Stop-Loss run `python run.py` or open the notebooks in `notebooks/`.
-
+For five complete examples including basic XL, AAL, AAD, reinstatements,
+Stop-Loss, and bootstrapped CIs run `python run.py` or open the notebooks
+in `notebooks/`.
 ---
 
 ## Expected Output
 
-Running `python run.py` produces the following output and two matplotlib plots.
+Running `python run.py` produces printed output for six examples followed
+by two matplotlib plots. Each example follows the same structure:
 
 ```
+=======================================================
+EXAMPLE N — Description
+=======================================================
 ─────────────────────────────────────────────
               RISK MEASURES
 ─────────────────────────────────────────────
-Expected Ceded Loss   :         184,454
-Std Deviation         :         515,188
-Coeff of Variation    :           2.793
-Skewness              :           4.218
+Expected Ceded Loss   :         XXX,XXX
+...
 ─────────────────────────────────────────────
-VaR  95%              :       1,243,721
-VaR  99%              :       2,542,759
-VaR  99.5%            :       3,198,442
-─────────────────────────────────────────────
-TVaR 95%              :       2,187,334
-TVaR 99%              :       3,675,235
-TVaR 99.5%            :       4,102,918
-─────────────────────────────────────────────
-Prob of Attachment    :           29.1%
-Prob of Exhaustion    :            2.3%
-─────────────────────────────────────────────
-Technical Premium     :         557,511
-Rate on Line          :          11.15%
+Gross ECL            :         XXX,XXX
+...
+Technical Premium    :         XXX,XXX
+Rate on Line         :          XX.XX%
 ```
 
-Two plots follow sequentially — close the first to see the second:
+The six examples cover:
 
+| Example | Treaty | Feature demonstrated |
+|---|---|---|
+| 1 | 5M xs 1M XL | Basic pricing — baseline |
+| 2 | 5M xs 1M XL + 15M AAL | Effect of Aggregate Annual Limit on ECL and premium |
+| 3 | 5M xs 1M XL + 500K AAD | Effect of Annual Aggregate Deductible |
+| 4 | 5M xs 1M XL + reinstatements | Net ECL after reinstatement premium income |
+| 5 | 20M xs 10M Stop-Loss | Aggregate treaty structure |
+| 6 | Bootstrap on Example 1 | Confidence intervals on all risk measures |
+
+A bootstrapped confidence interval table is computed for Example 1:
+
+```
+──────────────────────────────────────────────────────────────────────
+                      BOOTSTRAPPED RISK MEASURES
+                        n_simulations = 100000
+                    n_bootstrap = 1000 | CI = 95%
+──────────────────────────────────────────────────────────────────────
+Measure                    Estimate     CI Lower     CI Upper  Rel Width
+──────────────────────────────────────────────────────────────────────
+ECL                         184,454      181,471      187,951       3.5%
+Std Deviation               515,188      505,744      524,468       3.6%
+VaR 95%                   1,083,651    1,059,956    1,103,589       4.0%
+VaR 99%                   2,542,759    2,469,707    2,611,904       5.6%
+VaR 99.5%                 3,374,600    3,258,739    3,539,819       8.3%
+TVaR 95%                  2,002,855    1,965,287    2,040,574       3.8%
+TVaR 99%                  3,675,235    3,583,314    3,761,884       4.9%
+TVaR 99.5%                4,441,509    4,327,346    4,551,739       5.1%
+Prob Attachment              29.1%       28.9%       29.4%       1.9%
+Prob Exhaustion               0.2%        0.1%        0.2%      32.3%
+──────────────────────────────────────────────────────────────────────
+Rel Width = CI width / point estimate. < 5% = stable. > 10% = consider more simulations.
+```
+
+**Key insight from Example 1:** with 100,000 simulations, ECL and TVaR 99%
+are stable (Rel Width < 5%). VaR 99.5% and Prob Exhaustion have wider
+intervals — tail measures always require more simulations to stabilise.
+
+Two matplotlib plots follow sequentially after the printed output:
 - **Plot 1** — Ceded loss distribution histogram with VaR, TVaR, and treaty limit annotations
-- **Plot 2** — Sensitivity chart showing premium and ECL as the retention varies from 500K to 3M
+- **Plot 2** — Sensitivity chart showing premium and ECL as retention varies from 500K to 3M
 
 ---
 

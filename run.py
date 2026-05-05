@@ -158,21 +158,28 @@ pricer_sl = TechnicalPricer(
 print(pricer_sl.price(treaty_limit=treaty_sl.cap).summary())
 
 # ─────────────────────────────────────────────
-# 6. Bootstrapped confidence intervals
+# 6. Bootstrapped Confidence Intervals
+#    Applied to Example 1 (basic 5M xs 1M XL)
+#    to show how stable the risk measure
+#    estimates are given 100,000 simulations.
 # ─────────────────────────────────────────────
 print("\n" + "=" * 55)
 print("EXAMPLE 6 — Bootstrapped Confidence Intervals")
+print("Applied to: 5M xs 1M XL | Poisson(λ=120) | Lognormal(μ=10.5, σ=1.2)")
+print("Question: how stable are our risk measures with 100,000 simulations?")
 print("=" * 55)
 
 from reinsure_pricing.bootstrap import bootstrap_risk_measures
 
 boot = bootstrap_risk_measures(
-    results,
-    treaty_limit=treaty.limit,
+    results,                       # from Example 1 — basic 5M xs 1M XL
+    treaty_limit=treaty.limit,     # 5,000,000
     n_bootstrap=1_000,
     confidence_level=0.95,
 )
 print(boot.summary())
+print("\nInterpretation: Rel Width < 5% = stable estimate.")
+print("If Rel Width > 10%, consider increasing n_simulations.")
 
 # ─────────────────────────────────────────────
 # 7. Plots
