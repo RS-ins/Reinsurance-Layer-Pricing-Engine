@@ -335,4 +335,4 @@ This project is developed for research and educational purposes. It is **not** i
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [Apache 2.0 License](LICENSE).
