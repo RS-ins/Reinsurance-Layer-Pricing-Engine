@@ -113,7 +113,7 @@ reinsurance-layer-pricing-engine/
 │   ├── 02_stop_loss_pricing.ipynb         # ✅ Stop-Loss pricing walkthrough
 │   └── 03_sensitivity_analysis.ipynb      # ✅ Parameter sensitivity analysis
 ├── app/
-│   ├── generate_scenarios.py              # ✅ Pre-computes 3,900+ scenarios
+│   ├── generate_scenarios.py              # ✅ Pre-computes 11250 scenarios
 │   ├── dashboard.html                     # ✅ Static interactive dashboard
 │   └── scenarios.json                     # ✅ Pre-computed scenario data
 ├── tests/
