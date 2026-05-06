@@ -22,7 +22,6 @@ from reinsure_pricing.treaties import ExcessOfLoss, StopLoss
 
 
 @dataclass
-@dataclass
 class SimulationResults:
     """
     Container for the output of a Monte Carlo simulation run.

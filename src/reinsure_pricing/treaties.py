@@ -140,15 +140,65 @@ class ExcessOfLoss:
         return self.apply_detailed(losses).ceded_per_claim
 
     def apply_detailed(self, losses: np.ndarray) -> XLYearResult:
-    # Step 1 — per occurrence ceded amounts
+        """
+        Apply the XL treaty with full per-claim tracking.
+
+        Uses vectorised numpy operations throughout — no Python loops.
+        This is significantly faster than the original claim-by-claim
+        approach and produces identical results.
+
+        The three steps are:
+
+        Step 1 — Per-occurrence ceded amounts:
+            Apply the per-occurrence formula to every claim simultaneously:
+            C_i = min(max(X_i - retention, 0), limit)
+
+        Step 2 — Apply AAL via cumulative sum:
+            Compute the cumulative ceded loss before each claim using
+            np.cumsum. The remaining AAL before claim i is:
+                remaining_i = max(AAL - cumsum[i-1], 0)
+            Each claim cedes only min(C_i, remaining_i), so the claim
+            that straddles the AAL threshold is partially ceded rather
+            than simply zeroed out. This is actuarially correct and
+            allows precise identification of which claims consumed the AAL.
+
+        Step 3 — Apply AAD via cumulative deduction:
+            If the total annual ceded loss is below the AAD, the reinsurer
+            pays nothing. Otherwise, the AAD is subtracted from the first
+            claims in order using a cumulative deduction approach, leaving
+            only the excess over the AAD.
+
+        Parameters
+        ----------
+        losses : np.ndarray
+            Array of individual gross loss amounts for one accident year.
+
+        Returns
+        -------
+        XLYearResult
+            Dataclass containing:
+            - ceded_per_claim : per-claim ceded amounts after AAL and AAD
+            - annual_ceded    : sum of ceded_per_claim
+            - aal_exhausted   : True if the AAL was fully consumed
+            - aad_remaining   : unused AAD at end of year (0 if AAD absorbed)
+            - n_reinstatements_used : number of full limit exhaustions,
+            used by ReinstatementProvision to compute reinstatement premiums
+
+        Notes
+        -----
+        The partial cession of the AAL-straddling claim is implemented via:
+            remaining = max(AAL - cumsum_before_claim, 0)
+            ceded_i   = min(per_occurrence_i, remaining)
+
+        This ensures the total annual ceded loss never exceeds the AAL
+        while correctly attributing partial payment to the straddling claim.
+        """
         per_occurrence = np.minimum(
         np.maximum(losses - self.retention, 0), self.limit
         )
 
-        # Step 2 — apply AAL via cumulative sum (vectorised)
         if self.aggregate_limit is not None:
             cumsum    = np.cumsum(per_occurrence)
-            # how much AAL remains before each claim
             remaining = np.maximum(
                 self.aggregate_limit - np.concatenate([[0], cumsum[:-1]]), 0
             )
@@ -160,7 +210,6 @@ class ExcessOfLoss:
             aal_exhausted = False
             n_reinst      = int((per_occurrence >= self.limit).sum())
 
-        # Step 3 — apply AAD (vectorised)
         aad_remaining = 0.0
         if self.aggregate_deductible is not None:
             total = ceded.sum()
@@ -168,7 +217,6 @@ class ExcessOfLoss:
                 aad_remaining = float(self.aggregate_deductible - total)
                 ceded         = np.zeros(len(losses))
             else:
-                # subtract AAD from first claims using cumsum trick
                 cumsum_c  = np.cumsum(ceded)
                 aad       = self.aggregate_deductible
                 deducted  = np.minimum(ceded, np.maximum(aad - np.concatenate([[0], cumsum_c[:-1]]), 0))
