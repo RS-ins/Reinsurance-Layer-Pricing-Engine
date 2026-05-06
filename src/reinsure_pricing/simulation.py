@@ -18,8 +18,7 @@ import numpy as np
 from dataclasses import dataclass
 from reinsure_pricing.frequency import PoissonFrequency, NegativeBinomialFrequency
 from reinsure_pricing.severity import LognormalSeverity, GammaSeverity, ParetoSeverity
-from reinsure_pricing.treaties import ExcessOfLoss, StopLoss
-
+from reinsure_pricing.treaties import ExcessOfLoss, StopLoss, ReinstatementProvision
 
 @dataclass
 class SimulationResults:
@@ -183,7 +182,7 @@ class MonteCarloEngine:
         SimulationResults
             Container with ceded losses and optional reinstatement premiums.
         """
-        from reinsure_pricing.treaties import ExcessOfLoss, StopLoss, ReinstatementProvision
+
 
         claim_counts   = self.frequency.sample(self.n_simulations, self.rng)
         ceded_losses   = np.zeros(self.n_simulations)
