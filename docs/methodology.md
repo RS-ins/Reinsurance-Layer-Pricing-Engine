@@ -2,7 +2,7 @@
 
 ## Reinsurance Layer Pricing Engine
 
-This document describes the mathematical foundations of the engine, covering the collective risk model, treaty structures, risk measure definitions, and the technical pricing formula.
+This document describes the mathematical foundations of the engine, covering the collective risk model, treaty structures, risk measure definitions, the technical pricing formula, reinstatement provisions, and bootstrapped confidence intervals.
 
 ---
 
@@ -109,7 +109,31 @@ $$C = \sum_{i=1}^{N} C_i$$
 
 The treaty layer spans from $R$ (attachment) to $R + L$ (exhaustion point). Losses below $R$ are fully retained by the cedant. Losses above $R + L$ are partially retained above the exhaustion point.
 
-### 4.2 Stop-Loss
+### 4.2 Aggregate Annual Limit (AAL)
+
+The AAL caps the reinsurer's total annual ceded loss across all occurrences. Let $M$ denote the AAL. The per-claim ceded amounts are adjusted so that:
+
+$$\sum_{i=1}^{N} C_i^{\text{AAL}} \leq M$$
+
+The AAL is applied claim by claim using cumulative sums. Let $\tilde{C}_i$ denote the cumulative ceded loss before claim $i$:
+
+$$\tilde{C}_i = \sum_{j=1}^{i-1} C_j^{\text{AAL}}$$
+
+The ceded amount for claim $i$ after the AAL is:
+
+$$C_i^{\text{AAL}} = \min\bigl(C_i,\ \max(M - \tilde{C}_i,\ 0)\bigr)$$
+
+This ensures the claim that straddles the AAL threshold is **partially ceded** rather than simply zeroed out. This is actuarially correct and allows precise identification of which individual claims consumed the AAL — which is required for reinstatement premium calculations.
+
+### 4.3 Annual Aggregate Deductible (AAD)
+
+The AAD is a minimum annual ceded loss threshold below which the reinsurer pays nothing. Let $D$ denote the AAD. After applying the per-occurrence treaty and AAL:
+
+$$C^{\text{net}} = \max\bigl(\sum_{i} C_i^{\text{AAL}} - D,\ 0\bigr)$$
+
+The AAD is deducted from the first claims in order using a cumulative deduction approach, so only the excess over $D$ is paid by the reinsurer.
+
+### 4.4 Stop-Loss
 
 The Stop-Loss treaty applies to the **aggregate annual loss** $S$. For a treaty with attachment point $A$ and cap $M$:
 
@@ -119,128 +143,198 @@ Unlike the per-occurrence XL, the Stop-Loss protects against bad aggregate years
 
 ---
 
-## 5. Monte Carlo Simulation
+## 5. Reinstatement Premiums
+
+After a loss event exhausts the per-occurrence limit, the cedant can reinstate the limit by paying an additional premium to the reinsurer. This is standard market practice for XL treaties.
+
+The standard structure implemented is **1 free + 1 paid reinstatement at 100% pro rata as to time**.
+
+### 5.1 Free Reinstatement
+
+The first exhaustion of the per-occurrence limit triggers an automatic reinstatement at no cost to the cedant. The reinsurer restores the full limit without charging an additional premium.
+
+### 5.2 Paid Reinstatement
+
+Subsequent exhaustions trigger a paid reinstatement. The reinstatement premium is computed pro rata as to time — scaled by the fraction of the accident year remaining at the time of the reinstatement:
+
+$$RP_k = P \cdot \left(1 - \frac{k}{n_{\text{eff}} + 1}\right)$$
+
+where:
+- $P$ is the original technical premium
+- $k$ is the exhaustion number (starting from 1)
+- $n_{\text{eff}} = \min(n_{\text{reinstatements}},\ n_{\text{free}} + n_{\text{paid}})$
+
+The first $n_{\text{free}}$ exhaustions are free ($RP_k = 0$ for $k \leq n_{\text{free}}$). The total reinstatement premium for a year with $n$ exhaustions is:
+
+$$RP_{\text{total}} = \sum_{k=n_{\text{free}}+1}^{n_{\text{eff}}} P \cdot \left(1 - \frac{k}{n_{\text{eff}} + 1}\right)$$
+
+### 5.3 Timing Approximation
+
+In the Monte Carlo simulation, the exact timing of each exhaustion within the accident year is not tracked. The pro rata fraction is approximated by assuming exhaustions occur at evenly spaced intervals within the year. This is a simplification — in practice, loss event timing would be modelled explicitly using event dates.
+
+### 5.4 Net ECL
+
+The expected annual reinstatement premium flows back to the reinsurer, reducing the net cost of the layer:
+
+$$\text{Net ECL} = \mathbb{E}[C] - \mathbb{E}[RP_{\text{total}}]$$
+
+The technical premium is computed on the Net ECL rather than the gross ECL.
+
+---
+
+## 6. Monte Carlo Simulation
 
 The engine simulates $n$ accident years ($n = 100{,}000$ by default). For each year $j = 1, \ldots, n$:
 
 1. Draw claim count: $N_j \sim \text{Frequency}(\theta_f)$
 2. If $N_j > 0$, draw individual losses: $X_{j,1}, \ldots, X_{j,N_j} \sim \text{Severity}(\theta_s)$
-3. Apply the treaty to obtain ceded loss $C_j$
-4. Store $C_j$
+3. Apply the treaty (including AAL and AAD if active) to obtain ceded loss $C_j$
+4. If a reinstatement provision is active, compute the reinstatement premium $RP_j$
+5. Store $C_j$ and $RP_j$
 
-The output is the empirical distribution $\{C_1, \ldots, C_n\}$ from which all risk measures are estimated.
+The output is the empirical distribution $\{C_1, \ldots, C_n\}$ and $\{RP_1, \ldots, RP_n\}$ from which all risk measures are estimated.
 
-For the Stop-Loss treaty, the simulation is vectorised by drawing all individual losses across all years in a single numpy call, then splitting into per-year chunks using cumulative claim counts. This reduces runtime from $O(n)$ Python loop iterations to a single array operation.
+For the Stop-Loss treaty, the simulation is vectorised by drawing all individual losses across all years in a single numpy call, then splitting into per-year chunks using cumulative claim counts. This reduces runtime significantly compared to a Python loop.
 
 ---
 
-## 6. Risk Measures
+## 7. Risk Measures
 
 All risk measures are computed from the empirical ceded loss distribution $\{C_1, \ldots, C_n\}$.
 
-### 6.1 Expected Ceded Loss (ECL)
+### 7.1 Expected Ceded Loss (ECL)
 
 $$\text{ECL} = \hat{\mathbb{E}}[C] = \frac{1}{n} \sum_{j=1}^{n} C_j$$
 
 The pure premium — the minimum the reinsurer must charge to break even in expectation.
 
-### 6.2 Value at Risk (VaR)
+### 7.2 Value at Risk (VaR)
 
 $$\text{VaR}_\alpha(C) = \hat{F}_C^{-1}(\alpha)$$
 
-The empirical $\alpha$-quantile of the ceded loss distribution. VaR$_{99\%}$ is the loss level exceeded in only 1% of simulated years. It is a threshold measure — it does not describe the severity of losses beyond the threshold.
+The empirical $\alpha$-quantile of the ceded loss distribution. VaR is a threshold measure — it does not describe the severity of losses beyond the threshold.
 
-### 6.3 Tail Value at Risk (TVaR)
+### 7.3 Tail Value at Risk (TVaR)
 
 $$\text{TVaR}_\alpha(C) = \mathbb{E}\bigl[C \mid C > \text{VaR}_\alpha(C)\bigr]$$
 
-Also known as Conditional Tail Expectation (CTE) or Expected Shortfall (ES). TVaR answers the question: given that losses exceed the VaR threshold, what is the average outcome? TVaR is always $\geq$ VaR at the same confidence level. The gap TVaR$_{99}$ $-$ VaR$_{99}$ measures tail severity — how much worse outcomes get once the threshold is breached.
+Also known as Conditional Tail Expectation (CTE) or Expected Shortfall (ES). TVaR is always $\geq$ VaR at the same confidence level. TVaR is a **coherent risk measure** unlike VaR which violates subadditivity in general.
 
-TVaR is a **coherent risk measure** (satisfying subadditivity, monotonicity, positive homogeneity, and translation invariance), unlike VaR which violates subadditivity in general.
-
-### 6.4 Probability of Attachment
+### 7.4 Probability of Attachment
 
 $$p_{\text{att}} = P(C > 0) = \frac{1}{n} \sum_{j=1}^{n} \mathbf{1}[C_j > 0]$$
 
-The fraction of simulated years where the layer is triggered. For high-excess XL layers this is typically well below 50%.
+The fraction of simulated years where the layer was triggered.
 
-### 6.5 Probability of Exhaustion
+### 7.5 Probability of Exhaustion
 
 $$p_{\text{exh}} = P(C \geq L) = \frac{1}{n} \sum_{j=1}^{n} \mathbf{1}[C_j \geq L]$$
 
-The fraction of simulated years where the full treaty limit is consumed. A high exhaustion probability signals a heavily exposed layer.
+The fraction of simulated years where the full treaty limit was consumed.
 
-### 6.6 Coefficient of Variation
+### 7.6 Coefficient of Variation
 
 $$CV = \frac{\hat{\sigma}(C)}{\hat{\mathbb{E}}[C]}$$
 
 A scale-free measure of volatility. Useful for comparing layers of different sizes.
 
-### 6.7 Skewness
+### 7.7 Skewness
 
 $$\hat{\gamma} = \frac{1}{n} \sum_{j=1}^{n} \left(\frac{C_j - \hat{\mathbb{E}}[C]}{\hat{\sigma}(C)}\right)^3$$
 
-The third standardised central moment. Positive skewness (typical for reinsurance layers) confirms a heavy right tail — extreme years are significantly worse than the average.
+The third standardised central moment. Positive skewness confirms a heavy right tail.
 
 ---
 
-## 7. Technical Pricing Formula
+## 8. Technical Pricing Formula
 
-The engine implements a **cost-of-capital** pricing approach, consistent with Solvency II principles and standard actuarial practice for risk-adjusted pricing.
+The engine implements a **cost-of-capital** pricing approach, consistent with Solvency II principles.
 
-$$\text{Technical Premium} = \text{ECL} + e \cdot \text{ECL} + p \cdot \text{ECL} + r_c \cdot \max(\text{TVaR}_{99} - \text{ECL},\ 0)$$
+$$\text{Technical Premium} = \text{Net ECL} + e \cdot \text{Net ECL} + p \cdot \text{Net ECL} + r_c \cdot \max(\text{TVaR}_{99} - \text{Net ECL},\ 0)$$
 
 The four components are:
 
 | Component | Formula | Description |
 |---|---|---|
-| Pure premium | ECL | Expected annual ceded loss — the break-even floor |
-| Expense load | $e \cdot \text{ECL}$ | Proportional load for acquisition and admin costs |
-| Profit load | $p \cdot \text{ECL}$ | Target profit margin as a fraction of ECL |
-| Capital load | $r_c \cdot \max(\text{TVaR}_{99} - \text{ECL},\ 0)$ | Required return on risk capital |
+| Pure premium | Net ECL | Expected annual net ceded loss after reinstatement premiums |
+| Expense load | $e \cdot \text{Net ECL}$ | Proportional load for acquisition and admin costs |
+| Profit load | $p \cdot \text{Net ECL}$ | Target profit margin as a fraction of Net ECL |
+| Capital load | $r_c \cdot \max(\text{TVaR}_{99} - \text{Net ECL},\ 0)$ | Required return on risk capital |
 
-### 7.1 Capital Load Rationale
+### 8.1 Capital Load Rationale
 
 The capital load compensates the reinsurer's shareholders for holding **risk capital** against unexpected losses. The unexpected loss is proxied by:
 
-$$\text{Capital requirement} = \text{TVaR}_{99} - \text{ECL}$$
+$$\text{Capital requirement} = \text{TVaR}_{99} - \text{Net ECL}$$
 
-This represents the average loss in the worst 1% of years in excess of the expected loss. The expected loss is funded by the pure premium; the unexpected loss requires capital backing. The cost of capital $r_c$ is the minimum return shareholders require on that capital — typically set to the reinsurer's internal hurdle rate (10% in the default parameterisation).
+The cost of capital $r_c$ is the minimum return shareholders require on that capital — typically set to the reinsurer's internal hurdle rate (10% in the default parameterisation).
 
-### 7.2 Rate on Line
-
-The Rate on Line (ROL) is the standard reinsurance market metric for comparing layer pricing:
+### 8.2 Rate on Line
 
 $$\text{ROL} = \frac{\text{Technical Premium}}{L}$$
 
-where $L$ is the treaty limit. A ROL of 10% means the reinsurer charges 10% of the limit as annual premium.
+The standard reinsurance market metric for comparing layer pricing. A ROL of 10% means the reinsurer charges 10% of the limit as annual premium.
 
 ---
 
-## 8. Limitations and Model Risk
+## 9. Bootstrapped Confidence Intervals
 
-This engine is an educational and research tool. Key limitations include:
+### 9.1 Motivation
 
-**Independence assumption.** Frequency and severity are assumed independent. In practice, large events often produce both more claims and larger individual losses (e.g. catastrophes), introducing positive dependence that this model ignores.
+Risk measures computed from Monte Carlo simulation are **estimates** — they carry sampling uncertainty that depends on the number of simulations. A VaR 99% estimate from 100,000 simulations is more stable than one from 10,000 simulations, but neither is exact. Bootstrapped confidence intervals quantify this uncertainty and tell the user whether more simulations are needed.
+
+### 9.2 Method
+
+The non-parametric bootstrap resamples the simulated ceded loss array with replacement $B$ times (default $B = 1{,}000$). For each resample $b = 1, \ldots, B$:
+
+1. Draw $n$ losses with replacement from $\{C_1, \ldots, C_n\}$
+2. Compute the risk measure of interest on the resample
+
+The 95% confidence interval is the 2.5th and 97.5th percentiles of the $B$ bootstrap estimates:
+
+$$\text{CI}_{95\%} = \bigl[\hat{\theta}_{(0.025)},\ \hat{\theta}_{(0.975)}\bigr]$$
+
+### 9.3 Interpretation
+
+The **relative width** of the confidence interval measures estimate stability:
+
+$$\text{Rel Width} = \frac{\text{CI upper} - \text{CI lower}}{\text{point estimate}}$$
+
+| Rel Width | Interpretation |
+|---|---|
+| < 5% | Stable — the estimate can be trusted |
+| 5–10% | Moderate uncertainty — acceptable for most purposes |
+| > 10% | High uncertainty — consider increasing n_simulations |
+
+Tail measures (VaR 99.5%, TVaR 99.5%, Prob Exhaustion) typically have wider intervals than central measures (ECL, VaR 95%) because fewer observations fall in the extreme tail.
+
+### 9.4 Memory Considerations
+
+The bootstrap implementation draws all resamples simultaneously as a 2D numpy array of shape $(B, n)$. For $B = 1{,}000$ and $n = 100{,}000$ this requires approximately 800MB of memory. Reduce $B$ or $n$ if memory is constrained.
+
+---
+
+## 10. Limitations and Model Risk
+
+**Independence assumption.** Frequency and severity are assumed independent. In practice, large events often produce both more claims and larger individual losses, introducing positive dependence that this model ignores.
 
 **Parameter uncertainty.** All distribution parameters are treated as known with certainty. No parameter uncertainty is propagated through the simulation. In practice, parameter estimation error can be a significant source of pricing uncertainty, particularly in the tail.
 
-**No reinstatements.** The treaty limit is treated as fully available throughout the accident year. XL treaties typically include reinstatement provisions that restore the limit after a loss event in exchange for an additional premium.
+**Reinstatement timing approximation.** The pro rata fraction uses a uniform timing approximation — exhaustions are assumed to occur at evenly spaced intervals within the year. In practice, loss event timing would be modelled explicitly using event dates.
 
-**No aggregate limits.** The current XL implementation has no Aggregate Annual Limit (AAL). In practice, reinsurers cap their total annual exposure across all occurrences. The AAL implementation is planned for Phase 4.
+**No distribution fitting.** The engine takes distribution parameters as inputs. No functionality is provided for fitting distributions to historical loss data. Users are responsible for calibration.
 
 **Homogeneous portfolio.** All claims are drawn from the same severity distribution. In reality, a portfolio contains heterogeneous risks with different expected loss severities.
 
-**No tail fitting.** The engine takes distribution parameters as inputs. No functionality is provided for fitting distributions to historical loss data. Users are responsible for calibration.
+**Not validated.** The engine has not been validated against commercial actuarial software or industry benchmarks. Results are illustrative only and should not be used for professional pricing without independent review by a qualified actuary.
 
 ---
 
-## 9. References
-
-The methodology draws on standard actuarial and risk management literature:
+## 11. References
 
 - Klugman, S.A., Panjer, H.H., Willmot, G.E. (2012). *Loss Models: From Data to Decisions*. Wiley.
 - McNeil, A.J., Frey, R., Embrechts, P. (2015). *Quantitative Risk Management*. Princeton University Press.
 - Embrechts, P., Klüppelberg, C., Mikosch, T. (1997). *Modelling Extremal Events*. Springer.
 - European Insurance and Occupational Pensions Authority (2015). *Solvency II Technical Specifications*.
 - Daykin, C.D., Pentikäinen, T., Pesonen, M. (1994). *Practical Risk Theory for Actuaries*. Chapman & Hall.
+- Efron, B., Tibshirani, R.J. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
