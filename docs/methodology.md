@@ -314,7 +314,53 @@ The bootstrap implementation draws all resamples simultaneously as a 2D numpy ar
 
 ---
 
-## 10. Limitations and Model Risk
+## 10. Distribution Fitting
+
+### 10.1 Motivation
+
+Distribution parameters are not always known in advance. When historical loss data is available, the engine can fit frequency and severity distributions automatically using Maximum Likelihood Estimation (MLE) and select the best-fitting model using the Akaike Information Criterion (AIC).
+
+### 10.2 Maximum Likelihood Estimation
+
+For a distribution with parameter vector $\theta$ and observed data $\{x_1, \ldots, x_n\}$, the MLE finds the parameter values that maximise the log-likelihood:
+
+$$\hat{\theta} = \arg\max_\theta \sum_{i=1}^{n} \log f(x_i; \theta)$$
+
+where $f(x; \theta)$ is the probability density or mass function. For distributions with closed-form MLEs (Poisson, Lognormal, Pareto), the solution is computed analytically. For the Negative Binomial and Gamma, numerical optimisation via L-BFGS-B is used.
+
+### 10.3 Model Selection — AIC
+
+The Akaike Information Criterion penalises model complexity to prevent overfitting when comparing distributions with different numbers of parameters:
+
+$$\text{AIC} = 2k - 2\ell(\hat{\theta})$$
+
+where $k$ is the number of parameters and $\ell(\hat{\theta})$ is the maximised log-likelihood. **Lower AIC indicates a better fit.** The AIC penalty of $2k$ discourages selecting a more complex model unless the improvement in log-likelihood is sufficient to justify it.
+
+### 10.4 Frequency Distributions Tested
+
+| Distribution | Parameters | MLE |
+|---|---|---|
+| Poisson | $\lambda$ | $\hat{\lambda} = \bar{x}$ (sample mean) |
+| Negative Binomial | $\mu, \phi$ | Numerical optimisation |
+
+### 10.5 Severity Distributions Tested
+
+| Distribution | Parameters | MLE |
+|---|---|---|
+| Lognormal | $\mu, \sigma$ | $\hat{\mu} = \overline{\log x}$, $\hat{\sigma} = s_{\log x}$ |
+| Gamma | shape $k$, scale $\theta$ | Numerical optimisation via scipy |
+| Pareto | $\alpha, x_m$ | $\hat{x}_m = \min(x)$, $\hat{\alpha} = n / \sum \log(x_i / x_m)$ |
+
+### 10.6 Pareto Validity Constraint
+
+The Pareto MLE for $\alpha$ can produce values below 1.5 on small samples, corresponding to near-infinite variance. Fits with $\hat{\alpha} \leq 1.5$ are invalidated (assigned AIC = $10^{10}$) so the next best distribution is selected instead. This prevents degenerate pricing results from small datasets.
+
+### 10.7 Threshold Fitting
+
+When fitting severity to losses above a known deductible or retention, only losses exceeding the threshold are used. This is appropriate when smaller losses are unreported or excluded from the dataset by design.
+
+---
+## 11. Limitations and Model Risk
 
 **Independence assumption.** Frequency and severity are assumed independent. In practice, large events often produce both more claims and larger individual losses, introducing positive dependence that this model ignores.
 
@@ -330,7 +376,7 @@ The bootstrap implementation draws all resamples simultaneously as a 2D numpy ar
 
 ---
 
-## 11. References
+## 12. References
 
 - Klugman, S.A., Panjer, H.H., Willmot, G.E. (2012). *Loss Models: From Data to Decisions*. Wiley.
 - McNeil, A.J., Frey, R., Embrechts, P. (2015). *Quantitative Risk Management*. Princeton University Press.
