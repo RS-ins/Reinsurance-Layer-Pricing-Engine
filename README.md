@@ -114,16 +114,16 @@ reinsurance-layer-pricing-engine/
 │       ├── fitting.py                      # ✅ fit_frequency, fit_severity, FittingComparison
 │       └── io.py                           # ✅ load_losses, export_report
 ├── notebooks/
-│   ├── 01_xol_pricing.ipynb               # ✅ Full XL pricing walkthrough
-│   ├── 02_stop_loss_pricing.ipynb         # ✅ Stop-Loss pricing walkthrough
-│   └── 03_sensitivity_analysis.ipynb      # ✅ Parameter sensitivity analysis
+│   ├── 01_xol_pricing.ipynb                # ✅ Full XL pricing walkthrough
+│   ├── 02_stop_loss_pricing.ipynb          # ✅ Stop-Loss pricing walkthrough
+│   └── 03_sensitivity_analysis.ipynb       # ✅ Parameter sensitivity analysis
 ├── app/
-│   ├── generate_scenarios.py              # ✅ Pre-computes 11,250+ scenarios
-│   ├── dashboard.html                     # ✅ Static interactive dashboard
-│   └── scenarios.json                     # ✅ Pre-computed scenario data
+│   ├── generate_scenarios.py               # ✅ Pre-computes 11,250+ scenarios
+│   ├── dashboard.html                      # ✅ Static interactive dashboard
+│   └── scenarios.json                      # ✅ Pre-computed scenario data
 ├── data/
-│   └── sample_losses.csv                  # ✅ Sample historical loss data
-├── outputs/                               # Generated Excel reports (gitignored)
+│   └── sample_losses.csv                   # ✅ Sample historical loss data
+├── outputs/                                # Generated Excel reports (gitignored)
 ├── tests/
 │   ├── test_frequency.py
 │   ├── test_severity.py
@@ -132,7 +132,7 @@ reinsurance-layer-pricing-engine/
 │   ├── test_pricing.py
 │   └── test_risk_measures.py
 └── docs/
-    └── methodology.md                     # ✅ Mathematical foundations
+    └── methodology.md                      # ✅ Mathematical foundations
 ```
 
 ---
