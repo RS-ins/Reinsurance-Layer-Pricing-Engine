@@ -8,13 +8,13 @@
 
 ---
 
-## Live Dashboard (v0.2.0)
+## Live Dashboard
 
-An interactive dashboard with 11250 pre-computed scenarios is available online — no installation required:
+An interactive dashboard with 11,250+ pre-computed scenarios is available online — no installation required:
 
 **[→ Open Dashboard](https://rs-ins.github.io/Reinsurance-Layer-Pricing-Engine/)**
 
-Move the sliders to explore how treaty structure, frequency distribution, severity tail, and cost of capital affect the technical premium. Results update instantly.
+Move the sliders to explore how treaty structure, frequency distribution, severity tail, cost of capital, AAL, and AAD affect the technical premium. Click any metric card for a plain-English explanation.
 
 ---
 
@@ -22,7 +22,7 @@ Move the sliders to explore how treaty structure, frequency distribution, severi
 
 `reinsurance-layer-pricing-engine` is an open-source Python library for actuarial researchers and quantitative analysts working in reinsurance pricing. It implements a frequency-severity Monte Carlo simulation framework to model aggregate annual loss distributions, apply reinsurance treaty structures, and derive technically sound premium estimates.
 
-The engine supports Excess-of-Loss (XL) and Stop-Loss treaty types. Given user-specified frequency and severity distributions, it simulates a large number of accident years, applies the selected treaty to each simulated year's losses, and computes a full suite of risk measures on the resulting ceded loss distribution. A technical premium is derived using a cost-of-capital loading approach consistent with Solvency II principles.
+The engine supports Excess-of-Loss (XL) and Stop-Loss treaty types, including advanced features such as Aggregate Annual Limits, Annual Aggregate Deductibles, and reinstatement premiums. Distribution parameters can be specified manually or fitted automatically from historical loss data using Maximum Likelihood Estimation.
 
 The project is intended for educational and research purposes. It provides a transparent, modular codebase that can serve as a foundation for more sophisticated pricing models or as a reference implementation for actuarial students and practitioners.
 
@@ -38,13 +38,16 @@ The project is intended for educational and research purposes. It provides a tra
 - **Annual Aggregate Deductible (AAD)** — reinsurer pays only the excess over the annual threshold
 - **Reinstatement premiums** — standard 1 free + 1 paid at 100% pro rata as to time
 - **Full risk measure suite** — ECL, VaR, TVaR, CV, skewness, attachment and exhaustion probabilities
+- **Bootstrapped confidence intervals** for all risk measures — quantifies estimate stability
+- **Distribution fitting** from historical loss data via MLE with AIC-based model selection
 - **Technical premium** with explicit expense, profit, and capital loads via a cost-of-capital approach
 - **Net ECL pricing** — technical premium adjusted for expected reinstatement premium income
 - **Rate on Line (ROL)** calculation
-- **Interactive dashboard** — 11250 pre-computed scenarios, available online or deployable as a static HTML file with no server required
+- **Excel export** — multi-sheet report with summary, risk measures, pricing, distribution, and bootstrap results
+- **End-to-end workflow** via `fit_from_file.py` — load CSV, fit distributions, simulate, price, export
+- **Interactive dashboard** — 11,250+ pre-computed scenarios, deployable as a static HTML file
 - **Jupyter notebooks** — step-by-step walkthroughs of XL pricing, Stop-Loss pricing, and sensitivity analysis
 - **Reproducible results** via configurable random seed
-- **79% test coverage** across 49 unit tests
 
 ---
 
@@ -60,7 +63,7 @@ The engine follows a standard frequency-severity collective risk model. For a fu
 
 **Step 4 — Risk measures.** Compute ECL, VaR, TVaR, and other metrics from the empirical distribution of $\{C_1, \ldots, C_n\}$.
 
-**Step 5 — Pricing.** Derive the technical premium using a cost-of-capital loading approach.
+**Step 5 — Pricing.** Derive the technical premium using a cost-of-capital loading approach consistent with Solvency II.
 
 ---
 
@@ -75,7 +78,7 @@ The engine follows a standard frequency-severity collective risk model. For a fu
 
 ## Technical Pricing Formula
 
-$$\text{Technical Premium} = \text{ECL} + e \cdot \text{ECL} + p \cdot \text{ECL} + r_c \cdot \max(\text{TVaR}_{99} - \text{ECL},\ 0)$$
+$$\text{Technical Premium} = \text{Net ECL} + e \cdot \text{Net ECL} + p \cdot \text{Net ECL} + r_c \cdot \max(\text{TVaR}_{99} - \text{Net ECL},\ 0)$$
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -84,8 +87,7 @@ $$\text{Technical Premium} = \text{ECL} + e \cdot \text{ECL} + p \cdot \text{ECL
 | `expense_load` | 0.05 | Proportional load for acquisition and admin costs |
 | `profit_load` | 0.08 | Target profit margin as a fraction of ECL |
 | `cost_of_capital` | 0.10 | Required return on risk capital |
-
-The capital load is applied only to the unexpected loss — the portion of the tail that exceeds the ECL and requires capital support, consistent with Solvency II cost-of-capital principles.
+| `expected_reinstatement_premium` | 0.0 | Expected annual reinstatement premium income |
 
 ---
 
@@ -96,32 +98,38 @@ reinsurance-layer-pricing-engine/
 ├── README.md
 ├── SECURITY.md
 ├── pyproject.toml
-├── run.py                                 # Quick start script (5 examples)
+├── run.py                                  # Quick start script (8 examples)
+├── fit_from_file.py                        # ✅ End-to-end workflow from CSV input
 ├── src/
 │   └── reinsure_pricing/
 │       ├── __init__.py
-│       ├── frequency.py                   # ✅ Poisson, Negative Binomial
-│       ├── severity.py                    # ✅ Lognormal, Gamma, Pareto
-│       ├── treaties.py                    # ✅ ExcessOfLoss (AAL, AAD), StopLoss, ReinstatementProvision
-│       ├── simulation.py                  # ✅ MonteCarloEngine, SimulationResults
-│       ├── pricing.py                     # ✅ TechnicalPricer, PricingResult
-│       ├── risk_measures.py               # ✅ compute_risk_measures, RiskMeasures
-│       ├── bootstrap.py                   # ✅ BootstrapperInterval, BootstrappedRiskMeasures
-│       └── plots.py                       # ✅ plot_ceded_loss_distribution, plot_sensitivity
+│       ├── frequency.py                    # ✅ Poisson, Negative Binomial
+│       ├── severity.py                     # ✅ Lognormal, Gamma, Pareto
+│       ├── treaties.py                     # ✅ ExcessOfLoss (AAL, AAD), StopLoss, ReinstatementProvision
+│       ├── simulation.py                   # ✅ MonteCarloEngine, SimulationResults
+│       ├── pricing.py                      # ✅ TechnicalPricer, PricingResult
+│       ├── risk_measures.py                # ✅ compute_risk_measures, RiskMeasures
+│       ├── plots.py                        # ✅ plot_ceded_loss_distribution, plot_sensitivity
+│       ├── bootstrap.py                    # ✅ bootstrap_risk_measures, BootstrappedRiskMeasures
+│       ├── fitting.py                      # ✅ fit_frequency, fit_severity, FittingComparison
+│       └── io.py                           # ✅ load_losses, export_report
 ├── notebooks/
 │   ├── 01_xol_pricing.ipynb               # ✅ Full XL pricing walkthrough
 │   ├── 02_stop_loss_pricing.ipynb         # ✅ Stop-Loss pricing walkthrough
 │   └── 03_sensitivity_analysis.ipynb      # ✅ Parameter sensitivity analysis
 ├── app/
-│   ├── generate_scenarios.py              # ✅ Pre-computes 11250 scenarios
+│   ├── generate_scenarios.py              # ✅ Pre-computes 11,250+ scenarios
 │   ├── dashboard.html                     # ✅ Static interactive dashboard
 │   └── scenarios.json                     # ✅ Pre-computed scenario data
+├── data/
+│   └── sample_losses.csv                  # ✅ Sample historical loss data
+├── outputs/                               # Generated Excel reports (gitignored)
 ├── tests/
 │   ├── test_frequency.py
 │   ├── test_severity.py
-│   ├── test_treaties.py                   
-│   ├── test_simulation.py                 
-│   ├── test_pricing.py                    
+│   ├── test_treaties.py
+│   ├── test_simulation.py
+│   ├── test_pricing.py
 │   └── test_risk_measures.py
 └── docs/
     └── methodology.md                     # ✅ Mathematical foundations
@@ -137,6 +145,7 @@ Python 3.10 or later is required.
 git clone https://github.com/RS-ins/Reinsurance-Layer-Pricing-Engine.git
 cd Reinsurance-Layer-Pricing-Engine
 pip install -e ".[dev]"
+pip install openpyxl   # required for Excel export
 ```
 
 Dependencies managed via `pyproject.toml`: `numpy`, `scipy`, `pandas`, `matplotlib`, `plotly`.
@@ -160,8 +169,8 @@ severity  = LognormalSeverity(mu=10.5, sigma=1.2)
 treaty    = ExcessOfLoss(
     retention=1_000_000,
     limit=5_000_000,
-    aggregate_limit=15_000_000,
-    aggregate_deductible=500_000,
+    aggregate_limit=15_000_000,      # AAL — optional
+    aggregate_deductible=500_000,    # AAD — optional
 )
 
 # Reinstatement provision — 1 free + 1 paid at 100% pro rata
@@ -176,7 +185,7 @@ results = engine.run(reinstatement=rp)
 rm = compute_risk_measures(results, treaty_limit=treaty.limit)
 print(rm.summary())
 
-# Technical premium — adjusted for reinstatement premium income
+# Technical premium
 pricer = TechnicalPricer(
     expected_ceded_loss=results.expected_ceded_loss,
     tvar_99=results.tvar_99,
@@ -187,54 +196,104 @@ pricer = TechnicalPricer(
 )
 print(pricer.price(treaty_limit=treaty.limit).summary())
 
-# Bootstrapped confidence intervals — how stable are our estimates?
-boot = bootstrap_risk_measures(
-    results,
-    treaty_limit=treaty.limit,
-    n_bootstrap=1_000,
-    confidence_level=0.95,
-)
+# Bootstrapped confidence intervals
+boot = bootstrap_risk_measures(results, treaty_limit=treaty.limit, n_bootstrap=1_000)
 print(boot.summary())
 ```
 
-For five complete examples including basic XL, AAL, AAD, reinstatements,
-Stop-Loss, and bootstrapped CIs run `python run.py` or open the notebooks
-in `notebooks/`.
+For eight complete examples run `python run.py` or open the notebooks in `notebooks/`.
+
+---
+
+## Fitting from Historical Data
+
+The `fit_from_file.py` script provides a complete end-to-end workflow:
+load historical loss data → fit distributions → simulate → price → export to Excel.
+
+### Input file format
+
+```csv
+year,claim_count,loss_amount
+2000,8,234000
+2000,8,567000
+2001,11,890000
+2001,11,1200000
+```
+
+Both `claim_count` and `loss_amount` can be in the same file. The engine deduplicates claim counts per year automatically.
+
+### Usage
+
+```bash
+# Basic XL with default parameters
+python fit_from_file.py --input data/sample_losses.csv
+
+# Custom XL treaty
+python fit_from_file.py --input data/sample_losses.csv \
+    --retention 1000000 --limit 5000000
+
+# XL with Phase 4 features
+python fit_from_file.py --input data/sample_losses.csv \
+    --retention 1000000 --limit 5000000 \
+    --aal 15000000 --aad 500000 \
+    --reinstatements 1
+
+# Stop-Loss
+python fit_from_file.py --input data/sample_losses.csv \
+    --treaty-type sl --attachment 90000000 --cap 20000000
+
+# Reproducible run, no plot
+python fit_from_file.py --input data/sample_losses.csv \
+    --seed 42 --no-plot
+
+# Fit only losses above a threshold
+python fit_from_file.py --input data/sample_losses.csv \
+    --threshold 500000
+```
+
+### Available arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `--input` | required | Path to CSV input file |
+| `--treaty-type` | `xl` | `xl` or `sl` |
+| `--retention` | 1,000,000 | XL retention |
+| `--limit` | 5,000,000 | XL limit |
+| `--aal` | None | Aggregate Annual Limit |
+| `--aad` | None | Annual Aggregate Deductible |
+| `--reinstatements` | 0 | Number of paid reinstatements |
+| `--free-reinstatements` | 1 | Number of free reinstatements |
+| `--attachment` | 10,000,000 | Stop-Loss attachment |
+| `--cap` | 20,000,000 | Stop-Loss cap |
+| `--threshold` | None | Fit severity above this loss level |
+| `--expense-load` | 0.05 | Expense load rate |
+| `--profit-load` | 0.08 | Profit load rate |
+| `--cost-of-capital` | 0.10 | Cost of capital rate |
+| `--n-sims` | 100,000 | Number of simulations |
+| `--seed` | None | Random seed (None = random each run) |
+| `--no-bootstrap` | False | Skip bootstrapped CIs |
+| `--no-plot` | False | Skip matplotlib plot |
+
+The report is saved automatically to `outputs/pricing_report.xlsx`. If a report already exists, a timestamp is appended to avoid overwriting.
+
 ---
 
 ## Expected Output
 
-Running `python run.py` produces printed output for six examples followed
-by two matplotlib plots. Each example follows the same structure:
-
-```
-=============================================
-EXAMPLE N — Description
-=============================================
-─────────────────────────────────────────────
-              RISK MEASURES
-─────────────────────────────────────────────
-Expected Ceded Loss   :         XXX,XXX
-...
-─────────────────────────────────────────────
-Gross ECL            :         XXX,XXX
-...
-Technical Premium    :         XXX,XXX
-Rate on Line         :          XX.XX%
-```
-
-The six examples cover:
+Running `python run.py` produces printed output for eight examples followed by two matplotlib plots. Each example follows the same structure showing risk measures and pricing breakdown. The eight examples cover:
 
 | Example | Treaty | Feature demonstrated |
 |---|---|---|
 | 1 | 5M xs 1M XL | Basic pricing — baseline |
-| 2 | 5M xs 1M XL + 15M AAL | Effect of Aggregate Annual Limit on ECL and premium |
+| 2 | 5M xs 1M XL + 15M AAL | Effect of Aggregate Annual Limit |
 | 3 | 5M xs 1M XL + 500K AAD | Effect of Annual Aggregate Deductible |
 | 4 | 5M xs 1M XL + reinstatements | Net ECL after reinstatement premium income |
 | 5 | 20M xs 10M Stop-Loss | Aggregate treaty structure |
 | 6 | Bootstrap on Example 1 | Confidence intervals on all risk measures |
+| 7 | Export on Example 1 | Excel report saved to `outputs/` |
+| 8 | Distribution fitting | Fit distributions from simulated historical data |
 
-A bootstrapped confidence interval table is computed for Example 1:
+Example 6 produces the bootstrapped confidence interval table:
 
 ```
 ──────────────────────────────────────────────────────────────────────
@@ -255,16 +314,12 @@ TVaR 99.5%                4,441,509    4,327,346    4,551,739       5.1%
 Prob Attachment              29.1%       28.9%       29.4%       1.9%
 Prob Exhaustion               0.2%        0.1%        0.2%      32.3%
 ──────────────────────────────────────────────────────────────────────
-Rel Width = CI width / point estimate. < 5% = stable. > 10% = consider more simulations.
+Rel Width < 5% = stable. > 10% = consider more simulations.
 ```
 
-**Key insight from Example 1:** with 100,000 simulations, ECL and TVaR 99%
-are stable (Rel Width < 5%). VaR 99.5% and Prob Exhaustion have wider
-intervals — tail measures always require more simulations to stabilise.
-
-Two matplotlib plots follow sequentially after the printed output:
+Two matplotlib plots follow sequentially:
 - **Plot 1** — Ceded loss distribution histogram with VaR, TVaR, and treaty limit annotations
-- **Plot 2** — Sensitivity chart showing premium and ECL as retention varies from 500K to 3M
+- **Plot 2** — Sensitivity chart showing premium and ECL as the retention varies
 
 ---
 
@@ -275,7 +330,7 @@ Install Jupyter with `pip install jupyter ipykernel` then launch with `jupyter n
 | Notebook | Description |
 |---|---|
 | `01_xol_pricing.ipynb` | Full pricing walkthrough for a 5M xs 1M per-occurrence XL layer |
-| `02_stop_loss_pricing.ipynb` | Pricing walkthrough for a Stop-Loss treaty with attachment sensitivity analysis |
+| `02_stop_loss_pricing.ipynb` | Pricing walkthrough for a Stop-Loss treaty with attachment sensitivity |
 | `03_sensitivity_analysis.ipynb` | One-at-a-time sensitivity analysis varying λ, σ, retention, cost of capital, and frequency model |
 
 ---
@@ -286,7 +341,7 @@ A static HTML dashboard is deployed at:
 
 **[https://rs-ins.github.io/Reinsurance-Layer-Pricing-Engine/](https://rs-ins.github.io/Reinsurance-Layer-Pricing-Engine/)**
 
-It covers pre-computed scenarios across:
+It covers 11,250+ pre-computed scenarios across:
 
 | Parameter | Values |
 |---|---|
@@ -296,40 +351,23 @@ It covers pre-computed scenarios across:
 | Annual Aggregate Deductible (AAD) | None, €200K, €500K |
 | Severity tail σ | 5 levels (0.8 → 1.6) |
 | Mean claim count λ | 5 levels (60 → 180) |
-| Cost of capital | 2 levels (5% → 15%) |
+| Cost of capital | 2 levels (5%, 15%) |
 
-Each XL scenario includes reinstatement premium data (1 free + 1 paid at 100% pro rata as to time).
+Each XL scenario includes reinstatement premium data. Click any metric card for a plain-English explanation with the underlying formula.
 
 To regenerate scenarios locally:
 
----
-
-## Running the Dashboard Locally
-
-The dashboard is a static HTML file that reads `scenarios.json` from the same folder. Because browsers block local file access for security reasons, you need a simple local server to run it — you cannot just double-click `dashboard.html`.
-
-**Step 1 — Generate scenarios** (only needed once, or when parameters change):
-
 ```bash
-python app/generate_scenarios.py
+python app/generate_scenarios.py   # ~30 minutes
 ```
 
-**Step 2 — Start a local server** from the repo root:
+To run the dashboard locally:
 
 ```bash
 cd app
 python -m http.server 8080
+# then open http://127.0.0.1:8080/dashboard.html
 ```
-
-**Step 3 — Open in browser:**
-
-```
-http://127.0.0.1:8080/dashboard.html
-```
-
-That's it. The server runs until you press `Ctrl+C` in the terminal.
-
-> **Note:** If you change any parameters in `generate_scenarios.py` (retentions, limits, sigmas, etc.) you must regenerate `scenarios.json` and update the matching arrays at the top of `dashboard.html` to keep them in sync. The parameter grids in the JavaScript must exactly match the values used during generation.
 
 ---
 
@@ -339,7 +377,7 @@ That's it. The server runs until you press `Ctrl+C` in the terminal.
 python -m pytest
 ```
 
-Output includes a coverage report for all source modules. Current coverage: 88% across 34 tests.
+Output includes a coverage report for all source modules.
 
 ---
 
@@ -351,16 +389,16 @@ Output includes a coverage report for all source modules. Current coverage: 88% 
 | Phase 2 — Notebooks | ✅ Complete | XL pricing, Stop-Loss pricing, sensitivity analysis |
 | Phase 3 — Dashboard | ✅ Complete | Static HTML dashboard, GitHub Pages deployment |
 | Phase 4 — Advanced Features | ✅ Complete | AAL with per-claim tracking, AAD, reinstatement premiums |
-| Phase 5 — Production Hardening | 🔜 Planned | Distribution fitting, bootstrapped CIs, export to CSV/Excel |
+| Phase 5 — Production Hardening | ✅ Complete | Distribution fitting, bootstrapped CIs, Excel export, end-to-end workflow |
+| Phase 6 — Planned | 🔜 Planned | Copula dependence modelling, parameter uncertainty, credibility weighting |
 
 ---
 
 ## Limitations
 
 - **Independence assumption** — frequency and severity are modelled as independent
-- **No parameter uncertainty** — distribution parameters are treated as known
-- **Reinstatement timing** — reinstatement pro rata fraction uses a uniform timing approximation
-- **No distribution fitting** — users are responsible for calibrating distributional assumptions
+- **No parameter uncertainty** — fitted parameters are treated as known with certainty
+- **Reinstatement timing** — pro rata fraction uses a uniform timing approximation
 - **Not validated** against industry benchmarks or actuarial software
 
 See [`docs/methodology.md`](docs/methodology.md) for a full discussion of model risk.

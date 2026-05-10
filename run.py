@@ -223,3 +223,64 @@ plot_sensitivity(
     parameter_name="Retention (M€)",
 )
 plt.show()
+
+# ─────────────────────────────────────────────
+# 7. Export report to Excel
+# ─────────────────────────────────────────────
+print("\n" + "=" * 55)
+print("EXAMPLE 7 — Export to Excel")
+print("=" * 55)
+
+from reinsure_pricing.io import export_report
+
+export_report(
+    results=results,
+    rm=rm,
+    pricing=pricing,
+    treaty=treaty,
+    frequency=frequency,
+    severity=severity,
+    bootstrap=boot,
+)
+
+# ─────────────────────────────────────────────
+# 8. Distribution Fitting
+# ─────────────────────────────────────────────
+print("\n" + "=" * 55)
+print("EXAMPLE 8 — Distribution Fitting")
+print("=" * 55)
+
+from reinsure_pricing.fitting import fit_frequency, fit_severity
+import numpy as np
+
+# Simulate some historical data to fit
+rng_hist       = np.random.default_rng(99)
+hist_counts    = rng_hist.poisson(lam=115, size=15).tolist()
+hist_losses    = rng_hist.lognormal(mean=10.8, sigma=1.1, size=300).tolist()
+
+print("\nFitting frequency distribution to 15 years of claim counts...")
+freq_comp = fit_frequency(hist_counts)
+print(freq_comp.summary())
+
+print("\nFitting severity distribution to 300 individual losses...")
+sev_comp = fit_severity(hist_losses)
+print(sev_comp.summary())
+
+print("\nUsing fitted distributions to price the treaty...")
+engine_fitted = MonteCarloEngine(
+    frequency=freq_comp.best.distribution,
+    severity=sev_comp.best.distribution,
+    treaty=treaty,
+    n_simulations=100_000,
+    random_state=42,
+)
+results_fitted = engine_fitted.run()
+rm_fitted      = compute_risk_measures(results_fitted, treaty_limit=treaty.limit)
+pricer_fitted  = TechnicalPricer(
+    expected_ceded_loss=results_fitted.expected_ceded_loss,
+    tvar_99=results_fitted.tvar_99,
+)
+print(f"\nFitted model technical premium : "
+      f"{pricer_fitted.technical_premium():,.0f}")
+print(f"Rate on Line                   : "
+      f"{pricer_fitted.rate_on_line(treaty.limit):.2%}")
